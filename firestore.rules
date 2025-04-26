@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Basic helper function
+    function isAuth() {
+      return request.auth != null;
+    }
+    
+    // Updated rules for dyslexia_users collection
+    match /dyslexia_users/{userId} {
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+
+    // Modified rule for posts
+    match /posts/{postId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update: if isAuth() && 
+                   (request.auth.uid == resource.data.authorId || 
+                    request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount', 'commentCount']));
+      allow delete: if isAuth() && request.auth.uid == resource.data.authorId;
+      
+      // Most importantly: Allow access to likes subcollection
+      match /likes/{likeId} {
+        allow read, write: if isAuth();
+      }
+      
+      // Added: Allow access to comments subcollection within posts
+      match /comments/{commentId} {
+        allow read: if isAuth();
+        allow create: if isAuth();
+        allow update, delete: if isAuth() && request.auth.uid == resource.data.authorId;
+      }
+    }
+    
+    // Users collection with access to hidden_posts subcollection and reviews
+    match /users/{userId} {
+      allow read: if isAuth();
+      allow write: if isAuth() && request.auth.uid == userId;
+      
+      // ADD THIS SECTION FOR REVIEWS ACCESS
+      match /reviews/{reviewId} {
+        // Anyone can read reviews
+        allow read: if isAuth();
+        
+        // Only authenticated users can create reviews (but not for themselves)
+        allow create: if isAuth() && request.auth.uid != userId;
+        
+        // Users can only modify or delete their own reviews
+        allow update, delete: if isAuth() && request.auth.uid == resource.data.authorId;
+      }
+      
+      match /hidden_posts/{postId} {
+        allow read, write: if isAuth() && request.auth.uid == userId;
+      }
+    }
+    
+    // Add specific rules for chats collection
+    match /chats/{chatId} {
+      allow read: if isAuth() && 
+                  resource.data.participants.hasAny([request.auth.uid]);
+      allow create: if isAuth();
+      allow update: if isAuth() && 
+                   resource.data.participants.hasAny([request.auth.uid]);
+      allow delete: if isAuth() && 
+                   resource.data.participants.hasAny([request.auth.uid]);
+                   
+      // Allow access to messages subcollection
+      match /messages/{messageId} {
+        allow read: if isAuth() && 
+                   get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+        allow write: if isAuth() && 
+                    get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
+      }
+    }
+    
+    // Allow creation of reports
+    match /reported_posts/{reportId} {
+      allow create: if isAuth();
+      allow read: if isAuth() && request.auth.uid == resource.data.reportedBy;
+    }
+    
+    // General rules for other collections
+    match /comments/{commentId} {
+      allow read: if isAuth();
+      allow create: if isAuth();
+      allow update, delete: if isAuth() && request.auth.uid == resource.data.authorId;
+    }
+    
+    match /children/{childId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAuth();
+    }
+  }
+}
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow reading of all files for authenticated users
+    match /{allPaths=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Allow post image uploads for authenticated users
+    match /posts/{imageFile} {
+      allow write: if request.auth != null;
+    }
+    
+    // NEW RULE: Allow uploads to post_images path
+    match /post_images/{imageFile} {
+      allow write: if request.auth != null;
+    }
+    
+    // Allow users to upload their own profile images
+    match /users/{userId}/{allUserFiles=**} {
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
