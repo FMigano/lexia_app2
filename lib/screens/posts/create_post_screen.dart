@@ -221,7 +221,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       return downloadUrl;
     } catch (e) {
       debugPrint('❌ Error in _uploadImageToFirebase: $e');
-      throw e; // Re-throw to be caught by the caller
+      rethrow; // Re-throw to be caught by the caller
     }
   }
 

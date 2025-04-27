@@ -95,4 +95,43 @@ class PostService {
       return;
     });
   }
+
+  // Stream of all posts for real-time updates
+  Stream<QuerySnapshot> getPostsStream() {
+    return _firestore
+        .collection('posts')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Stream of comments for a specific post (most recent first)
+  Stream<QuerySnapshot> getCommentsStream(String postId) {
+    return _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('comments')
+        .orderBy('createdAt', descending: true)
+        .snapshots();
+  }
+
+  // Check if a user has liked a post in real-time
+  Stream<bool> hasLikedStream(String postId) {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) {
+      return Stream.value(false);
+    }
+
+    return _firestore
+        .collection('posts')
+        .doc(postId)
+        .collection('likes')
+        .doc(currentUser.uid)
+        .snapshots()
+        .map((snapshot) => snapshot.exists);
+  }
+
+  // Get a single post as a stream for real-time updates
+  Stream<DocumentSnapshot> getPostStream(String postId) {
+    return _firestore.collection('posts').doc(postId).snapshots();
+  }
 }

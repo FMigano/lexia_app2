@@ -206,51 +206,41 @@ class _FeedScreenState extends State<FeedScreen> {
 
           // Post list
           Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredPosts.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.sentiment_dissatisfied,
-                                size: 64, color: Colors.grey),
-                            const SizedBox(height: 16),
-                            const Text(
-                              'No posts found',
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            if (_searchQuery.isNotEmpty ||
-                                _selectedCategory != null)
-                              TextButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _searchQuery = '';
-                                    _selectedCategory = 'All';
-                                    _applyFilters();
-                                  });
-                                },
-                                child: const Text('Clear filters'),
-                              ),
-                          ],
-                        ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: _loadPosts,
-                        child: ListView.builder(
-                          itemCount: _filteredPosts.length,
-                          itemBuilder: (context, index) {
-                            final post = _filteredPosts[index];
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                PostCard(post: post),
-                              ],
-                            );
-                          },
-                        ),
-                      ),
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore
+                  .collection('posts')
+                  .orderBy('createdAt',
+                      descending: true) // Important: sort by creation time
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                if (snapshot.hasError) {
+                  return Center(child: Text('Error: ${snapshot.error}'));
+                }
+
+                final posts = snapshot.data?.docs ?? [];
+
+                if (posts.isEmpty) {
+                  return const Center(child: Text('No posts yet'));
+                }
+
+                return ListView.builder(
+                  itemCount: posts.length,
+                  itemBuilder: (context, index) {
+                    final post = posts[index].data() as Map<String, dynamic>;
+                    final postId = posts[index].id;
+
+                    return PostCard(
+                      post: post_model.Post.fromMap(post, postId),
+                    );
+                  },
+                );
+              },
+            ),
           ),
         ],
       ),

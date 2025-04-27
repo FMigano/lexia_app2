@@ -419,6 +419,31 @@ class _PostCardState extends State<PostCard> {
     }
   }
 
+  Widget _buildLikeButton() {
+    return StreamBuilder<bool>(
+      stream: _postService.hasLikedStream(widget.post.id),
+      initialData: _isLiked, // Use current state as initial
+      builder: (context, snapshot) {
+        final isLiked = snapshot.data ?? false;
+
+        return TextButton.icon(
+          icon: Icon(
+            isLiked ? Icons.favorite : Icons.favorite_border,
+            color: isLiked ? Colors.red : null,
+          ),
+          label: Text(
+            'Like',
+            style: GoogleFonts.poppins(
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          onPressed: _toggleLike,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // More detailed debugging
@@ -766,20 +791,7 @@ class _PostCardState extends State<PostCard> {
           Row(
             children: [
               Expanded(
-                child: TextButton.icon(
-                  icon: Icon(
-                    _isLiked ? Icons.favorite : Icons.favorite_border,
-                    color: _isLiked ? Colors.red : null,
-                  ),
-                  label: Text(
-                    'Like',
-                    style: GoogleFonts.poppins(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  onPressed: _toggleLike,
-                ),
+                child: _buildLikeButton(),
               ),
               Expanded(
                 child: TextButton.icon(

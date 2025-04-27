@@ -47,22 +47,19 @@ class _CommentsScreenState extends State<CommentsScreen> {
         children: [
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: FirebaseFirestore.instance
-                  .collection('posts')
-                  .doc(widget.postId)
-                  .collection('comments')
-                  .orderBy('createdAt', descending: false)
-                  .snapshots(),
+              stream: _postService.getCommentsStream(widget.postId),
               builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
                 final comments = snapshot.data?.docs ?? [];
+
                 if (comments.isEmpty) {
                   return const Center(child: Text('No comments yet'));
                 }
@@ -70,33 +67,32 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 return ListView.builder(
                   itemCount: comments.length,
                   itemBuilder: (context, index) {
-                    final doc = comments[index];
-                    final data = doc.data() as Map<String, dynamic>;
-                    final currentUser = FirebaseAuth.instance.currentUser;
-                    final isAuthor = currentUser != null &&
-                        data['authorId'] == currentUser.uid;
+                    final comment =
+                        comments[index].data() as Map<String, dynamic>;
+                    final commentId = comments[index].id;
 
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundImage: data['authorPhotoUrl'] != null &&
-                                data['authorPhotoUrl'] != ''
-                            ? NetworkImage(data['authorPhotoUrl'])
+                        backgroundImage: comment['authorPhotoUrl'] != null &&
+                                comment['authorPhotoUrl'] != ''
+                            ? NetworkImage(comment['authorPhotoUrl'])
                             : null,
-                        child: data['authorPhotoUrl'] == null ||
-                                data['authorPhotoUrl'] == ''
+                        child: comment['authorPhotoUrl'] == null ||
+                                comment['authorPhotoUrl'] == ''
                             ? const Icon(Icons.person)
                             : null,
                       ),
-                      title: Text(data['authorName'] as String? ?? 'Anonymous'),
+                      title:
+                          Text(comment['authorName'] as String? ?? 'Anonymous'),
                       subtitle: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(data['content'] as String? ?? ''),
+                          Text(comment['content'] as String? ?? ''),
                           const SizedBox(height: 4),
-                          if (data['createdAt'] != null)
+                          if (comment['createdAt'] != null)
                             Text(
                               timeago.format(
-                                  (data['createdAt'] as Timestamp).toDate()),
+                                  (comment['createdAt'] as Timestamp).toDate()),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -104,7 +100,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
                             ),
                         ],
                       ),
-                      trailing: isAuthor
+                      trailing: FirebaseAuth.instance.currentUser != null &&
+                              comment['authorId'] ==
+                                  FirebaseAuth.instance.currentUser!.uid
                           ? IconButton(
                               icon: const Icon(Icons.delete_outline,
                                   color: Colors.red),
@@ -123,10 +121,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
                                       ),
                                       TextButton(
                                         onPressed: () {
-                                          // Delete the comment
                                           _postService
                                               .deleteComment(
-                                                  widget.postId, doc.id)
+                                                  widget.postId, commentId)
                                               .then((_) {
                                             Navigator.of(context).pop();
                                             ScaffoldMessenger.of(context)
