@@ -209,8 +209,7 @@ class _FeedScreenState extends State<FeedScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
                   .collection('posts')
-                  .orderBy('createdAt',
-                      descending: true) // Important: sort by creation time
+                  .orderBy('createdAt', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting &&
@@ -222,17 +221,50 @@ class _FeedScreenState extends State<FeedScreen> {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
-                final posts = snapshot.data?.docs ?? [];
+                final allPosts = snapshot.data?.docs ?? [];
 
-                if (posts.isEmpty) {
+                if (allPosts.isEmpty) {
                   return const Center(child: Text('No posts yet'));
                 }
 
+                // Apply filters in real-time
+                var filteredPosts = allPosts;
+
+                // Filter by category if selected
+                if (_selectedCategory != null && _selectedCategory != 'All') {
+                  filteredPosts = filteredPosts.where((doc) {
+                    final postData = doc.data() as Map<String, dynamic>;
+                    return postData['category'] == _selectedCategory;
+                  }).toList();
+                }
+
+                // Apply search filter
+                if (_searchQuery.isNotEmpty) {
+                  filteredPosts = filteredPosts.where((doc) {
+                    final postData = doc.data() as Map<String, dynamic>;
+                    final content = postData['content'] as String? ?? '';
+                    final authorName = postData['authorName'] as String? ?? '';
+
+                    return content
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        authorName
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase());
+                  }).toList();
+                }
+
+                if (filteredPosts.isEmpty) {
+                  return const Center(
+                      child: Text('No posts match your filters'));
+                }
+
                 return ListView.builder(
-                  itemCount: posts.length,
+                  itemCount: filteredPosts.length,
                   itemBuilder: (context, index) {
-                    final post = posts[index].data() as Map<String, dynamic>;
-                    final postId = posts[index].id;
+                    final post =
+                        filteredPosts[index].data() as Map<String, dynamic>;
+                    final postId = filteredPosts[index].id;
 
                     return PostCard(
                       post: post_model.Post.fromMap(post, postId),

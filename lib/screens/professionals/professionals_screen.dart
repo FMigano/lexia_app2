@@ -14,6 +14,7 @@ class ProfessionalsScreen extends StatefulWidget {
 
 class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   String _selectedSpecialty = '';
+  String _searchQuery = '';
 
   final List<String> _specialties = [
     'All',
@@ -59,7 +60,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
               ),
               onChanged: (value) {
                 setState(() {
-                  // Removed unused _searchQuery field
+                  _searchQuery = value;
                 });
               },
             ),
@@ -106,7 +107,8 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _buildQuery(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
+                if (snapshot.connectionState == ConnectionState.waiting &&
+                    !snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -114,7 +116,27 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
-                final professionals = snapshot.data?.docs ?? [];
+                var professionals = snapshot.data?.docs ?? [];
+
+                // Apply search filter in real-time
+                if (_searchQuery.isNotEmpty) {
+                  professionals = professionals.where((doc) {
+                    final data = doc.data() as Map<String, dynamic>;
+                    final name = data['name'] as String? ?? '';
+                    final specialty = data['specialty'] as String? ?? '';
+                    final about = data['about'] as String? ?? '';
+
+                    return name
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        specialty
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase()) ||
+                        about
+                            .toLowerCase()
+                            .contains(_searchQuery.toLowerCase());
+                  }).toList();
+                }
 
                 if (professionals.isEmpty) {
                   return const Center(
@@ -126,11 +148,11 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                   padding: const EdgeInsets.all(16),
                   itemCount: professionals.length,
                   itemBuilder: (context, index) {
-                    final profesional = professionals[index];
-                    final data = profesional.data() as Map<String, dynamic>;
+                    final professional = professionals[index];
+                    final data = professional.data() as Map<String, dynamic>;
 
                     return _ProfessionalCard(
-                      id: profesional.id,
+                      id: professional.id,
                       name: data['name'] ?? 'Unknown',
                       specialty: data['specialty'] ?? 'Not specified',
                       photoUrl: data['photoUrl'] ?? '',
