@@ -94,6 +94,14 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(
           seedColor: Colors.deepPurple,
           brightness: Brightness.dark,
+          // You can add these lines for better contrast in dark mode
+          surface: const Color(0xFF1E1E1E),
+          background: const Color(0xFF121212),
+          primary: Colors.deepPurple.shade300, // Lighter shade for better visibility
+        ),
+        // Make text more readable in dark mode
+        textTheme: GoogleFonts.poppinsTextTheme(
+          ThemeData.dark().textTheme,
         ),
       ),
       themeMode: themeProvider.themeMode,

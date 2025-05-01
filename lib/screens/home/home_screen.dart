@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lexia_app/screens/home/feed_screen.dart';
-import 'package:lexia_app/screens/chat/chat_list_screen.dart';
+import 'package:lexia_app/screens/chat/chat_and_appointments_screen.dart';
 import 'package:lexia_app/screens/professionals/professionals_screen.dart';
 import 'package:lexia_app/screens/profile/profile_screen.dart';
 import 'package:provider/provider.dart';
@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _screens = [
     const FeedScreen(),
-    const ChatListScreen(),
+    const ChatAndAppointmentsScreen(), // Replace with combined screen
     const ProfessionalsScreen(),
     const ProfileScreen(),
   ];
@@ -94,12 +94,12 @@ class _HomeScreenState extends State<HomeScreen> {
           NavigationDestination(
             icon: Icon(Icons.chat_outlined),
             selectedIcon: Icon(Icons.chat),
-            label: 'Chat',
+            label: 'Messages',
           ),
           NavigationDestination(
             icon: Icon(Icons.people_outlined),
             selectedIcon: Icon(Icons.people),
-            label: 'Professionals',
+            label: 'Professional',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),
@@ -110,7 +110,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       floatingActionButton: _selectedIndex == 0
           ? FloatingActionButton(
-              heroTag: 'home_fab', // Add this unique tag
+              heroTag: 'home_fab',
               onPressed: () async {
                 await Navigator.push(
                   context,

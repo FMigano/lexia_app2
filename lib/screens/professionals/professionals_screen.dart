@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lexia_app/screens/chat/chat_screen.dart';
 import 'package:lexia_app/screens/professionals/professional_detail_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:add_2_calendar/add_2_calendar.dart';
+import 'package:intl/intl.dart';
 
 class ProfessionalsScreen extends StatefulWidget {
   const ProfessionalsScreen({super.key});
@@ -175,7 +177,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
         .collection('users')
         .where('role', isEqualTo: 'professional');
 
-    if (_selectedSpecialty.isNotEmpty) {
+    if (_selectedSpecialty.isNotEmpty && _selectedSpecialty != 'All') {
       query = query.where('specialty', isEqualTo: _selectedSpecialty);
     }
 
@@ -371,7 +373,7 @@ class _ProfessionalCard extends StatelessWidget {
                       icon: const Icon(Icons.calendar_today),
                       label: const Text('Book'),
                       onPressed: () {
-                        // Implement booking functionality
+                        _showBookingDialog(context);
                       },
                     ),
                   ],
@@ -382,6 +384,255 @@ class _ProfessionalCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Add this method to show the booking dialog
+  Future<void> _showBookingDialog(BuildContext context) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please sign in to book appointments')),
+      );
+      return;
+    }
+
+    DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
+    TimeOfDay selectedTime = TimeOfDay(hour: 9, minute: 0);
+    String appointmentReason = '';
+
+    final result = await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) {
+          return AlertDialog(
+            title: Text('Book Appointment with $name'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ListTile(
+                    title: const Text('Date'),
+                    subtitle: Text(DateFormat.yMMMMd().format(selectedDate)),
+                    trailing: const Icon(Icons.calendar_today),
+                    onTap: () async {
+                      final DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: selectedDate,
+                        firstDate: DateTime.now(),
+                        // Increase the date range to allow more years
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)), // 5 years ahead
+                        // Add these settings to improve year selection
+                        initialDatePickerMode: DatePickerMode.day,
+                        selectableDayPredicate: (DateTime date) {
+                          // Exclude weekends if desired (optional)
+                          // return date.weekday != DateTime.saturday && date.weekday != DateTime.sunday;
+                          return true; // Allow all days
+                        },
+                        builder: (BuildContext context, Widget? child) {
+                          return Theme(
+                            data: Theme.of(context).copyWith(
+                              dialogTheme: const DialogTheme(
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                                ),
+                              ),
+                            ),
+                            child: child!,
+                          );
+                        },
+                      );
+                      if (picked != null && picked != selectedDate) {
+                        setState(() {
+                          selectedDate = picked;
+                        });
+                      }
+                    },
+                  ),
+                  ListTile(
+                    title: const Text('Time'),
+                    subtitle: Text(selectedTime.format(context)),
+                    trailing: const Icon(Icons.access_time),
+                    onTap: () async {
+                      final TimeOfDay? picked = await showTimePicker(
+                        context: context,
+                        initialTime: selectedTime,
+                      );
+                      if (picked != null && picked != selectedTime) {
+                        setState(() {
+                          selectedTime = picked;
+                        });
+                      }
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    decoration: const InputDecoration(
+                      labelText: 'Reason for appointment',
+                      border: OutlineInputBorder(),
+                    ),
+                    maxLines: 3,
+                    onChanged: (value) {
+                      appointmentReason = value;
+                    },
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Specialty: $specialty',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: _getSpecialtyColor(specialty),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('CANCEL'),
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop({
+                    'date': selectedDate,
+                    'time': selectedTime,
+                    'reason': appointmentReason,
+                  });
+                },
+                child: const Text('BOOK'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    // Process booking if user confirmed
+    if (result != null) {
+      final DateTime appointmentDateTime = DateTime(
+        result['date'].year,
+        result['date'].month,
+        result['date'].day,
+        result['time'].hour,
+        result['time'].minute,
+      );
+
+      try {
+        // Save to Firestore first (most important)
+        await _saveAppointmentToFirestore(
+          context,
+          currentUser.uid,
+          appointmentDateTime,
+          result['reason'] as String,
+        );
+        
+        // Then try adding to calendar (optional)
+        try {
+          final event = Event(
+            title: 'Appointment with $name',
+            description: result['reason'].isEmpty
+                ? 'Consultation with $name ($specialty)'
+                : '${result['reason']}\n\nConsultation with $name ($specialty)',
+            location: 'Online Session',
+            startDate: appointmentDateTime,
+            endDate: appointmentDateTime.add(const Duration(hours: 1)),
+            allDay: false,
+            iosParams: const IOSParams(
+              reminder: Duration(minutes: 30),
+            ),
+            androidParams: const AndroidParams(
+              emailInvites: null,
+            ),
+          );
+          
+          final bool addedToCalendar = await Add2Calendar.addEvent2Cal(event);
+          
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(
+                addedToCalendar 
+                    ? 'Appointment scheduled and added to calendar' 
+                    : 'Appointment scheduled successfully'
+              )),
+            );
+          }
+        } catch (calendarError) {
+          // Just show appointment scheduled message if calendar fails
+          if (context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Appointment scheduled successfully')),
+            );
+          }
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error scheduling appointment: $e')),
+          );
+        }
+      }
+    }
+  }
+
+  // Store the appointment in Firestore
+  Future<void> _saveAppointmentToFirestore(
+    BuildContext context,
+    String userId,
+    DateTime appointmentTime,
+    String reason,
+  ) async {
+    try {
+      // Get user's display name
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .get();
+      final userName = userDoc.data()?['name'] ?? 'Client';
+
+      // Create the appointment
+      await FirebaseFirestore.instance.collection('appointments').add({
+        'professionalId': id,
+        'professionalName': name,
+        'userId': userId,
+        'userName': userName,
+        'appointmentTime': Timestamp.fromDate(appointmentTime),
+        'reason': reason,
+        'specialty': specialty,
+        'status': 'pending', // pending, confirmed, completed, cancelled
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Send a notification to the professional
+      await FirebaseFirestore.instance.collection('notifications').add({
+        'recipientId': id,
+        'senderId': userId,
+        'senderName': userName,
+        'type': 'appointment_request',
+        'message': 'New appointment request from $userName',
+        'appointmentTime': Timestamp.fromDate(appointmentTime),
+        'isRead': false,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Appointment with $name has been scheduled!'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error scheduling appointment: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _startChat(

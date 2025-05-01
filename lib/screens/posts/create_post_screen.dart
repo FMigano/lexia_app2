@@ -1,17 +1,20 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_storage/firebase_storage.dart'; // Add this import
 import 'package:provider/provider.dart';
-import 'package:flutter_image_compress/flutter_image_compress.dart'; // Add this import
 // Import with a prefix to avoid ambiguity
 import 'package:lexia_app/providers/auth_provider.dart' as app_provider;
+import 'package:lexia_app/services/post_service.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  final bool? isProfessional;
+
+  const CreatePostScreen({this.isProfessional, super.key});
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -19,10 +22,12 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
-  final List<File> _selectedImages = [];
+  final PostService _postService = PostService();
+  final ImagePicker _picker = ImagePicker();
+  List<XFile>? _selectedImages;
   bool _isLoading = false;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final _formKey = GlobalKey<FormState>();
 
   // Available categories for selection
   final List<String> _categories = [
@@ -43,65 +48,152 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage() async {
-    final ImagePicker picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-
-    if (image != null) {
-      setState(() {
-        _selectedImages.add(File(image.path));
-      });
-    }
-  }
-
-  void _removeImage(int index) {
-    setState(() {
-      _selectedImages.removeAt(index);
-    });
-  }
-
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'Question':
-        return const Color(0xFF9C27B0); // Vibrant Purple
+        return Colors.blue;
       case 'Discussion':
-        return const Color(0xFF2196F3); // Vibrant Blue
+        return Colors.purple;
       case 'Tips':
-        return const Color(0xFF4CAF50); // Vibrant Green
+        return Colors.green;
       case 'Resource':
-        return const Color(0xFFFF9800); // Vibrant Orange
+        return Colors.orange;
       case 'Success Story':
-        return const Color(0xFF009688); // Vibrant Teal
+        return Colors.teal;
       case 'Support':
-        return const Color(0xFFF44336); // Vibrant Red
+        return Colors.red;
       default:
-        return Colors.grey;
+        return Colors.blue;
     }
   }
 
   Color _getCategoryColorWithOpacity(String category, double opacity) {
-    final Color baseColor = _getCategoryColor(category);
-    return Color.fromRGBO(
-        baseColor.r.toInt(), // Add toInt() here
-        baseColor.g.toInt(), // Add toInt() here
-        baseColor.b.toInt(), // Add toInt() here
-        opacity);
+    return _getCategoryColor(category).withAlpha((opacity * 255).toInt());
+  }
+
+  Future<void> _pickImages() async {
+    try {
+      final List<XFile> images = await _picker.pickMultiImage() ?? [];
+
+      if (images.isNotEmpty) {
+        setState(() {
+          _selectedImages = images;
+        });
+        debugPrint('Selected ${images.length} images');
+      }
+    } catch (e) {
+      debugPrint('Error picking images: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error picking images: $e')),
+        );
+      }
+    }
+  }
+
+  Widget _buildImagePreview() {
+    if (_selectedImages == null || _selectedImages!.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return SizedBox(
+      height: 100,
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        itemCount: _selectedImages!.length,
+        itemBuilder: (context, index) {
+          final xFile = _selectedImages![index];
+
+          return Padding(
+            padding: const EdgeInsets.only(right: 8.0),
+            child: Stack(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8.0),
+                  child: FutureBuilder<Uint8List>(
+                    future: xFile.readAsBytes(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[200],
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        );
+                      }
+
+                      if (snapshot.hasError || !snapshot.hasData) {
+                        debugPrint('Error loading image: ${snapshot.error}');
+                        return Container(
+                          width: 100,
+                          height: 100,
+                          color: Colors.grey[300],
+                          child: const Icon(Icons.broken_image, size: 40),
+                        );
+                      }
+
+                      return Image.memory(
+                        snapshot.data!,
+                        width: 100,
+                        height: 100,
+                        fit: BoxFit.cover,
+                      );
+                    },
+                  ),
+                ),
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  child: InkWell(
+                    onTap: () {
+                      setState(() {
+                        _selectedImages!.removeAt(index);
+                      });
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.black.withAlpha((0.7 * 255).toInt()),
+                        shape: BoxShape.circle,
+                      ),
+                      padding: const EdgeInsets.all(4),
+                      child: const Icon(
+                        Icons.close,
+                        color: Colors.white,
+                        size: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
   }
 
   Future<void> _submitPost() async {
-    // Check if user is authenticated first
     if (_auth.currentUser == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be signed in to create posts')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('You must be signed in to create posts')),
+        );
+      }
       return;
     }
 
     final content = _contentController.text.trim();
-    if (content.isEmpty && _selectedImages.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please add some content to your post.')),
-      );
+    if (content.isEmpty &&
+        (_selectedImages == null || _selectedImages!.isEmpty)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Please add some content to your post.')),
+        );
+      }
       return;
     }
 
@@ -118,52 +210,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       final isProfessional =
           authProvider.userRole == app_provider.UserRole.professional;
 
-      // Process images BEFORE creating the post document
-      List<String> mediaUrls = [];
+      debugPrint('Creating post with category: $_selectedCategory');
+      debugPrint('Selected images: ${_selectedImages?.length ?? 0}');
 
-      if (_selectedImages.isNotEmpty) {
-        // Use a list of futures to track all uploads
-        List<Future<String>> uploadFutures = [];
+      // Use the selectedImages parameter for web compatibility
+      await _postService.createPost(
+        content: content,
+        category: _selectedCategory,
+        selectedImages: _selectedImages,
+        isProfessional: isProfessional,
+      );
 
-        for (File image in _selectedImages) {
-          // Create a future for each upload and add it to the list
-          uploadFutures.add(_uploadImageToFirebase(image));
-        }
-
-        // Wait for ALL uploads to complete before continuing
-        try {
-          mediaUrls = await Future.wait(uploadFutures);
-          debugPrint(
-              '📸 ALL images uploaded successfully. Total: ${mediaUrls.length}');
-        } catch (e) {
-          debugPrint('❌ Error waiting for image uploads: $e');
-        }
-      }
-
-      // Now create the post with image URLs instead of base64 data
-      debugPrint(
-          '📝 Creating post with ${mediaUrls.length} images: $mediaUrls');
-
-      final docRef = await _firestore.collection('posts').add({
-        'authorId': currentUser.uid,
-        'authorName': currentUser.displayName ?? '',
-        'authorPhotoUrl': currentUser.photoURL ?? '',
-        'content': content,
-        'mediaUrls': mediaUrls, // These should be the download URLs
-        'createdAt': FieldValue.serverTimestamp(),
-        'likeCount': 0,
-        'commentCount': 0,
-        'isProfessionalPost': isProfessional,
-        'category': _selectedCategory,
-      });
-
-      debugPrint('📝 Post created with ID: ${docRef.id}');
-
-      // Double check the document was created correctly
-      final createdDoc = await docRef.get();
-      debugPrint('📝 Verifying document contents:');
-      debugPrint(
-          '📝 mediaUrls in document: ${createdDoc.data()?['mediaUrls']}');
+      debugPrint('Post created successfully');
 
       if (mounted) {
         Navigator.of(context).pop();
@@ -172,11 +230,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         );
       }
     } catch (e) {
-      debugPrint("Detailed firestore error: $e");
-      if (e.toString().contains('permission-denied')) {
-        debugPrint("User ID: ${_auth.currentUser?.uid}");
-        debugPrint("Is email verified: ${_auth.currentUser?.emailVerified}");
-      }
+      debugPrint("Detailed error: $e");
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -194,34 +248,96 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     }
   }
 
-  Future<String> _uploadImageToFirebase(File image) async {
+  Future<DocumentReference?> createPost({
+    required String content,
+    required String category,
+    List<XFile>? selectedImages, // Add this parameter
+    List<File>? imageFiles, // Keep for backward compatibility
+    bool isProfessional = false,
+  }) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return null;
+
     try {
-      final bytes = await image.readAsBytes();
-      final currentUser = _auth.currentUser!;
+      // Upload images if provided
+      List<String> mediaUrls = [];
 
-      final resizedImg = await FlutterImageCompress.compressWithList(
-        bytes,
-        minHeight: 500,
-        minWidth: 500,
-        quality: 30,
-      );
+      // Handle web uploads using XFile
+      if (selectedImages != null && selectedImages.isNotEmpty) {
+        mediaUrls = await uploadImageFiles(selectedImages);
+      }
+      // Handle mobile uploads using File (for backward compatibility)
+      else if (imageFiles != null && imageFiles.isNotEmpty) {
+        mediaUrls = await uploadImageFiles(
+            imageFiles.map((file) => XFile(file.path)).toList());
+      }
 
-      final fileName =
-          '${DateTime.now().millisecondsSinceEpoch}_${currentUser.uid}.jpg';
-      final ref = FirebaseStorage.instance.ref().child('posts').child(fileName);
-
-      final uploadTask = ref.putData(
-        resizedImg,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-
-      final snapshot = await uploadTask;
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-
-      return downloadUrl;
+      // Create the post document
+      final FirebaseFirestore firestore = FirebaseFirestore.instance;
+      return await firestore.collection('posts').add({
+        'content': content,
+        'title': '', // For compatibility
+        'mediaUrls': mediaUrls,
+        'imageIds': [], // For compatibility
+        'category': category,
+        'authorId': currentUser.uid,
+        'authorName': currentUser.displayName ?? 'User',
+        'authorPhotoUrl': currentUser.photoURL ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'likeCount': 0,
+        'commentCount': 0,
+        'isProfessionalPost': isProfessional,
+      });
     } catch (e) {
-      debugPrint('❌ Error in _uploadImageToFirebase: $e');
-      rethrow; // Re-throw to be caught by the caller
+      debugPrint('Error creating post: $e');
+      return null;
+    }
+  }
+
+  // Add this new method for web uploads
+  Future<List<String>> uploadImageFiles(List<XFile> imageFiles) async {
+    final currentUser = _auth.currentUser;
+    if (currentUser == null) return [];
+
+    final List<String> imageUrls = [];
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+
+    try {
+      for (int i = 0; i < imageFiles.length; i++) {
+        final xFile = imageFiles[i];
+
+        // Read the file bytes directly from XFile
+        final bytes = await xFile.readAsBytes();
+
+        if (bytes.isEmpty) {
+          debugPrint('File is empty: ${xFile.name}');
+          continue;
+        }
+
+        // Create a reference for this specific image
+        final imageRef = FirebaseStorage.instance
+            .ref()
+            .child('post_images/${currentUser.uid}/${timestamp}_${xFile.name}');
+
+        try {
+          // Upload file data with metadata
+          final metadata = SettableMetadata(contentType: 'image/jpeg');
+          await imageRef.putData(bytes, metadata);
+
+          // Get download URL
+          final downloadUrl = await imageRef.getDownloadURL();
+          imageUrls.add(downloadUrl);
+
+          debugPrint('Image uploaded successfully: $downloadUrl');
+        } catch (uploadError) {
+          debugPrint('Error uploading individual image: $uploadError');
+        }
+      }
+
+      return imageUrls;
+    } catch (e) {
+      debugPrint('Error in uploadImageFiles: $e');
+      return [];
     }
   }
 
@@ -256,142 +372,100 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                CircleAvatar(
-                  backgroundImage: _auth.currentUser?.photoURL != null
-                      ? NetworkImage(_auth.currentUser!.photoURL!)
-                      : null,
-                  child: _auth.currentUser?.photoURL == null
-                      ? Text(
-                          (_auth.currentUser?.displayName ?? '?')[0]
-                              .toUpperCase(),
-                        )
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  _auth.currentUser?.displayName ?? 'Anonymous',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
                 children: [
+                  CircleAvatar(
+                    backgroundImage: _auth.currentUser?.photoURL != null
+                        ? NetworkImage(_auth.currentUser!.photoURL!)
+                        : null,
+                    child: _auth.currentUser?.photoURL == null
+                        ? Text(
+                            (_auth.currentUser?.displayName ?? '?')[0]
+                                .toUpperCase(),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
                   Text(
-                    'Post Category',
-                    style: GoogleFonts.poppins(
+                    _auth.currentUser?.displayName ?? 'Anonymous',
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
                   ),
-                  const SizedBox(height: 8),
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: _categories.map((category) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: ChoiceChip(
-                            label: Text(
-                              category,
-                              style: GoogleFonts.poppins(
-                                fontSize: 13,
-                                fontWeight: _selectedCategory == category
-                                    ? FontWeight.w600
-                                    : FontWeight.w400,
-                                color: _selectedCategory == category
-                                    ? Colors.white
-                                    : null,
-                              ),
-                            ),
-                            selected: _selectedCategory == category,
-                            onSelected: (selected) {
-                              if (selected) {
-                                setState(() {
-                                  _selectedCategory = category;
-                                });
-                              }
-                            },
-                            backgroundColor:
-                                _getCategoryColorWithOpacity(category, 0.15),
-                            selectedColor: _getCategoryColor(category),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
                 ],
               ),
-            ),
-            TextField(
-              controller: _contentController,
-              maxLines: 10,
-              decoration: const InputDecoration(
-                hintText: 'What do you want to share?',
-                border: InputBorder.none,
-              ),
-            ),
-            if (_selectedImages.isNotEmpty) ...[
               const SizedBox(height: 16),
-              SizedBox(
-                height: 100,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _selectedImages.length,
-                  itemBuilder: (context, index) {
-                    return Stack(
-                      children: [
-                        Container(
-                          margin: const EdgeInsets.only(right: 8),
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(8),
-                            image: DecorationImage(
-                              image: FileImage(_selectedImages[index]),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          top: 4,
-                          right: 12,
-                          child: GestureDetector(
-                            onTap: () => _removeImage(index),
-                            child: Container(
-                              padding: const EdgeInsets.all(2),
-                              decoration: const BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
+              Container(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Post Category',
+                      style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: _categories.map((category) {
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 8.0),
+                            child: ChoiceChip(
+                              label: Text(
+                                category,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 13,
+                                  fontWeight: _selectedCategory == category
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                                  color: _selectedCategory == category
+                                      ? Colors.white
+                                      : null,
+                                ),
                               ),
-                              child: const Icon(
-                                Icons.close,
-                                size: 16,
-                                color: Colors.black,
-                              ),
+                              selected: _selectedCategory == category,
+                              onSelected: (selected) {
+                                if (selected) {
+                                  setState(() {
+                                    _selectedCategory = category;
+                                  });
+                                }
+                              },
+                              backgroundColor:
+                                  _getCategoryColorWithOpacity(category, 0.15),
+                              selectedColor: _getCategoryColor(category),
                             ),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              TextField(
+                controller: _contentController,
+                maxLines: 10,
+                decoration: const InputDecoration(
+                  hintText: 'What do you want to share?',
+                  border: InputBorder.none,
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildImagePreview(),
             ],
-          ],
+          ),
         ),
       ),
       bottomNavigationBar: BottomAppBar(
@@ -399,22 +473,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           children: [
             IconButton(
               icon: const Icon(Icons.photo_library),
-              onPressed: _pickImage,
-            ),
-            IconButton(
-              icon: const Icon(Icons.camera_alt),
-              onPressed: () async {
-                final ImagePicker picker = ImagePicker();
-                final XFile? image = await picker.pickImage(
-                  source: ImageSource.camera,
-                );
-
-                if (image != null) {
-                  setState(() {
-                    _selectedImages.add(File(image.path));
-                  });
-                }
-              },
+              onPressed: _pickImages,
             ),
           ],
         ),

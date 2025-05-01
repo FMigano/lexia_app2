@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart'; // Import for debugPrint
 
 class Post {
   final String id;
@@ -23,56 +24,48 @@ class Post {
     required this.content,
     this.title = '',
     this.mediaUrls = const [],
-    this.imageIds = const [], // Add this line with default empty list
+    this.imageIds = const [], // Keep this for backward compatibility
     required this.createdAt,
     required this.likeCount,
     required this.commentCount,
-    this.isProfessionalPost = false,
+    required this.isProfessionalPost,
     required this.category,
   });
 
   factory Post.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
-
-    // Add this section to parse imageIds
-    List<String> imageIds = [];
-    if (data['imageIds'] != null) {
-      imageIds = List<String>.from(data['imageIds']);
-    }
-
-    return Post(
-      id: doc.id,
-      authorId: data['authorId'] ?? '',
-      authorName: data['authorName'] ?? '',
-      authorPhotoUrl: data['authorPhotoUrl'] ?? '',
-      content: data['content'] ?? '',
-      title: data['title'] ?? '',
-      mediaUrls:
-          data['mediaUrls'] != null ? List<String>.from(data['mediaUrls']) : [],
-      imageIds: imageIds, // Add this line
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      likeCount: data['likeCount'] ?? 0,
-      commentCount: data['commentCount'] ?? 0,
-      isProfessionalPost: data['isProfessionalPost'] ?? false,
-      category: data['category'] ?? 'Discussion',
-    );
+    return Post.fromMap(data, doc.id);
   }
 
   factory Post.fromMap(Map<String, dynamic> map, String id) {
+    // Debug the mediaUrls field
+    final rawMediaUrls = map['mediaUrls'];
+    debugPrint('Raw mediaUrls type: ${rawMediaUrls.runtimeType}');
+    debugPrint('Raw mediaUrls value: $rawMediaUrls');
+
+    List<String> mediaUrls = [];
+    try {
+      if (rawMediaUrls != null) {
+        mediaUrls = List<String>.from(rawMediaUrls);
+      }
+    } catch (e) {
+      debugPrint('Error parsing mediaUrls: $e');
+    }
+
     return Post(
       id: id,
       authorId: map['authorId'] ?? '',
-      authorName: map['authorName'] ?? '',
+      authorName: map['authorName'] ?? 'Anonymous',
       authorPhotoUrl: map['authorPhotoUrl'] ?? '',
       content: map['content'] ?? '',
       title: map['title'] ?? '',
+      mediaUrls: mediaUrls,
+      imageIds: List<String>.from(map['imageIds'] ?? []),
+      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       likeCount: map['likeCount'] ?? 0,
       commentCount: map['commentCount'] ?? 0,
-      createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isProfessionalPost: map['isProfessionalPost'] ?? false,
-      mediaUrls: List<String>.from(map['mediaUrls'] ?? []),
-      imageIds: List<String>.from(map['imageIds'] ?? []), // Parse imageIds
-      category: map['category'] ?? 'Discussion',
+      category: map['category'] ?? 'General',
     );
   }
 

@@ -11,6 +11,7 @@ import 'package:lexia_app/providers/auth_provider.dart' as app_provider;
 import 'package:lexia_app/providers/theme_provider.dart';
 import 'package:lexia_app/screens/auth/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+// Ensure this path is correct
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -317,6 +318,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             'specialty',
                             userData['specialty'] as String? ?? '',
                           ),
+                          icon: Icons.arrow_drop_down,
                         ),
                         _EditableField(
                           label: 'Experience',
@@ -379,16 +381,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               .update({'notifications': value});
                         },
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        'Start chatting with parents or professionals',
-                        style: GoogleFonts.poppins(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          height: 1.5,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
                     ],
                   ),
                 );
@@ -398,6 +390,122 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editField(String field, String currentValue) async {
+    // Special case for specialty field
+    if (field == 'specialty') {
+      // List of predefined specialties with icons
+      final specialties = [
+        {'name': 'Neurologist', 'icon': Icons.psychology},
+        {'name': 'Psychologist', 'icon': Icons.person_outline},
+        {'name': 'Teacher', 'icon': Icons.school},
+        {'name': 'Speech Therapist', 'icon': Icons.record_voice_over},
+        {'name': 'Occupational Therapist', 'icon': Icons.accessibility_new},
+      ];
+
+      final selectedSpecialty = await showModalBottomSheet<String>(
+        context: context,
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        builder: (context) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 20.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20.0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Choose Specialty',
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.of(context).pop(),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: specialties.map((specialty) {
+                      final isSelected = specialty['name'] == currentValue;
+                      return ListTile(
+                        leading: Icon(
+                          specialty['icon'] as IconData,
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.primary
+                              : Colors.grey,
+                        ),
+                        title: Text(
+                          specialty['name'] as String,
+                          style: GoogleFonts.poppins(
+                            fontWeight: isSelected
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? Icon(Icons.check_circle,
+                                color: Theme.of(context).colorScheme.primary)
+                            : null,
+                        onTap: () {
+                          Navigator.of(context)
+                              .pop(specialty['name'] as String);
+                        },
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
+      // Update firestore if a specialty was selected
+      if (selectedSpecialty != null && _auth.currentUser != null) {
+        try {
+          await _firestore
+              .collection('users')
+              .doc(_auth.currentUser!.uid)
+              .update({
+            'specialty': selectedSpecialty,
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Specialty updated to $selectedSpecialty'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Error updating specialty: $e'),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      }
+      return;
+    }
+
+    // Regular dialog for other fields (unchanged)
     final controller = TextEditingController(text: currentValue);
 
     final result = await showDialog<String>(
@@ -518,11 +626,13 @@ class _EditableField extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onEdit;
+  final IconData icon;
 
   const _EditableField({
     required this.label,
     required this.value,
     required this.onEdit,
+    this.icon = Icons.edit,
   });
 
   @override
@@ -553,7 +663,7 @@ class _EditableField extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(icon: const Icon(Icons.edit), onPressed: onEdit),
+          IconButton(icon: Icon(icon), onPressed: onEdit),
         ],
       ),
     );

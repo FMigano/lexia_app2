@@ -5,7 +5,6 @@ import 'package:lexia_app/models/post.dart' as post_model;
 import 'package:lexia_app/widgets/post_card.dart';
 import 'package:lexia_app/screens/posts/create_post_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-// Add this import at the top
 
 class FeedScreen extends StatefulWidget {
   const FeedScreen({super.key});
@@ -19,12 +18,11 @@ class _FeedScreenState extends State<FeedScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String _currentUserId = '';
   bool _isLoading = true;
-  List<post_model.Post> _posts = [];
-  List<post_model.Post> _filteredPosts = []; // For filtered posts
-
-  // For filtering
   String _searchQuery = '';
   String? _selectedCategory;
+
+  // Add hiddenPostIds to track which posts are hidden
+  List<String> _hiddenPostIds = [];
 
   // Define available categories
   final List<String> _categories = [
@@ -41,10 +39,11 @@ class _FeedScreenState extends State<FeedScreen> {
   void initState() {
     super.initState();
     _currentUserId = _auth.currentUser?.uid ?? '';
-    _loadPosts();
+    _loadHiddenPosts();
   }
 
-  Future<void> _loadPosts() async {
+  // New method to load hidden post IDs
+  Future<void> _loadHiddenPosts() async {
     setState(() => _isLoading = true);
 
     if (_currentUserId.isEmpty) {
@@ -53,69 +52,31 @@ class _FeedScreenState extends State<FeedScreen> {
     }
 
     try {
-      // Load hidden posts first to filter them out
       final hiddenPostsSnapshot = await _firestore
           .collection('users')
           .doc(_currentUserId)
           .collection('hidden_posts')
           .get();
 
-      final hiddenPostIds =
-          hiddenPostsSnapshot.docs.map((doc) => doc.id).toList();
-
-      // Get all posts sorted by creation time
-      final postsSnapshot = await _firestore
-          .collection('posts')
-          .orderBy('createdAt', descending: true)
-          .get();
-
-      List<post_model.Post> posts = postsSnapshot.docs
-          .where((doc) => !hiddenPostIds.contains(doc.id))
-          .map((doc) => post_model.Post.fromFirestore(doc))
-          .toList();
-
       if (mounted) {
         setState(() {
-          _posts = posts;
-          _filteredPosts = posts; // Initialize with all posts
+          _hiddenPostIds =
+              hiddenPostsSnapshot.docs.map((doc) => doc.id).toList();
           _isLoading = false;
         });
-
-        // Apply any existing filters
-        if (_selectedCategory != null || _searchQuery.isNotEmpty) {
-          _applyFilters();
-        }
       }
     } catch (e) {
-      debugPrint('Error loading posts: $e');
+      debugPrint('Error loading hidden posts: $e');
       if (mounted) {
         setState(() => _isLoading = false);
       }
     }
   }
 
-  // Apply both search and category filters
-  void _applyFilters() {
-    List<post_model.Post> filtered = _posts;
-
-    // Apply category filter if selected
-    if (_selectedCategory != null && _selectedCategory != 'All') {
-      filtered =
-          filtered.where((post) => post.category == _selectedCategory).toList();
-    }
-
-    // Apply search filter if provided
-    if (_searchQuery.isNotEmpty) {
-      filtered = filtered.where((post) {
-        return post.content
-                .toLowerCase()
-                .contains(_searchQuery.toLowerCase()) ||
-            post.authorName.toLowerCase().contains(_searchQuery.toLowerCase());
-      }).toList();
-    }
-
+  // A method to add a post ID to hidden posts (call this from PostCard)
+  void addHiddenPost(String postId) {
     setState(() {
-      _filteredPosts = filtered;
+      _hiddenPostIds.add(postId);
     });
   }
 
@@ -124,7 +85,7 @@ class _FeedScreenState extends State<FeedScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // Add this heading section here
+          // Heading section
           Padding(
             padding: const EdgeInsets.all(16.0),
             child: Text(
@@ -137,7 +98,7 @@ class _FeedScreenState extends State<FeedScreen> {
             ),
           ),
 
-          // Add this category filter section here
+          // Category filter section
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: SizedBox(
@@ -164,7 +125,6 @@ class _FeedScreenState extends State<FeedScreen> {
                       onSelected: (selected) {
                         setState(() {
                           _selectedCategory = selected ? category : 'All';
-                          _applyFilters();
                         });
                       },
                       backgroundColor: category == 'All'
@@ -198,81 +158,115 @@ class _FeedScreenState extends State<FeedScreen> {
               onChanged: (value) {
                 setState(() {
                   _searchQuery = value;
-                  _applyFilters();
                 });
               },
             ),
           ),
 
-          // Post list
+          // Post list with stream to update hidden posts in real time
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('posts')
-                  .orderBy('createdAt', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : StreamBuilder<QuerySnapshot>(
+                    stream: _firestore
+                        .collection('users')
+                        .doc(_currentUserId)
+                        .collection('hidden_posts')
+                        .snapshots(),
+                    builder: (context, hiddenSnapshot) {
+                      // Update hidden post IDs from the stream
+                      if (hiddenSnapshot.hasData && !hiddenSnapshot.hasError) {
+                        _hiddenPostIds = hiddenSnapshot.data!.docs
+                            .map((doc) => doc.id)
+                            .toList();
+                      }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+                      return StreamBuilder<QuerySnapshot>(
+                        stream: _firestore
+                            .collection('posts')
+                            .orderBy('createdAt', descending: true)
+                            .snapshots(),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                                  ConnectionState.waiting &&
+                              !snapshot.hasData) {
+                            return const Center(
+                                child: CircularProgressIndicator());
+                          }
 
-                final allPosts = snapshot.data?.docs ?? [];
+                          if (snapshot.hasError) {
+                            return Center(
+                                child: Text('Error: ${snapshot.error}'));
+                          }
 
-                if (allPosts.isEmpty) {
-                  return const Center(child: Text('No posts yet'));
-                }
+                          final allPosts = snapshot.data?.docs ?? [];
 
-                // Apply filters in real-time
-                var filteredPosts = allPosts;
+                          if (allPosts.isEmpty) {
+                            return const Center(child: Text('No posts yet'));
+                          }
 
-                // Filter by category if selected
-                if (_selectedCategory != null && _selectedCategory != 'All') {
-                  filteredPosts = filteredPosts.where((doc) {
-                    final postData = doc.data() as Map<String, dynamic>;
-                    return postData['category'] == _selectedCategory;
-                  }).toList();
-                }
+                          // Apply filters in real-time including hidden posts filter
+                          var filteredPosts = allPosts.where((doc) {
+                            // Filter out hidden posts first!
+                            return !_hiddenPostIds.contains(doc.id);
+                          }).toList();
 
-                // Apply search filter
-                if (_searchQuery.isNotEmpty) {
-                  filteredPosts = filteredPosts.where((doc) {
-                    final postData = doc.data() as Map<String, dynamic>;
-                    final content = postData['content'] as String? ?? '';
-                    final authorName = postData['authorName'] as String? ?? '';
+                          // Filter by category if selected
+                          if (_selectedCategory != null &&
+                              _selectedCategory != 'All') {
+                            filteredPosts = filteredPosts.where((doc) {
+                              final postData =
+                                  doc.data() as Map<String, dynamic>;
+                              return postData['category'] == _selectedCategory;
+                            }).toList();
+                          }
 
-                    return content
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        authorName
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase());
-                  }).toList();
-                }
+                          // Apply search filter
+                          if (_searchQuery.isNotEmpty) {
+                            filteredPosts = filteredPosts.where((doc) {
+                              final postData =
+                                  doc.data() as Map<String, dynamic>;
+                              final content =
+                                  postData['content'] as String? ?? '';
+                              final authorName =
+                                  postData['authorName'] as String? ?? '';
 
-                if (filteredPosts.isEmpty) {
-                  return const Center(
-                      child: Text('No posts match your filters'));
-                }
+                              return content
+                                      .toLowerCase()
+                                      .contains(_searchQuery.toLowerCase()) ||
+                                  authorName
+                                      .toLowerCase()
+                                      .contains(_searchQuery.toLowerCase());
+                            }).toList();
+                          }
 
-                return ListView.builder(
-                  itemCount: filteredPosts.length,
-                  itemBuilder: (context, index) {
-                    final post =
-                        filteredPosts[index].data() as Map<String, dynamic>;
-                    final postId = filteredPosts[index].id;
+                          if (filteredPosts.isEmpty) {
+                            return const Center(
+                                child: Text('No posts match your filters'));
+                          }
 
-                    return PostCard(
-                      post: post_model.Post.fromMap(post, postId),
-                    );
-                  },
-                );
-              },
-            ),
+                          return ListView.builder(
+                            itemCount: filteredPosts.length,
+                            itemBuilder: (context, index) {
+                              final post = filteredPosts[index].data()
+                                  as Map<String, dynamic>;
+                              final postId = filteredPosts[index].id;
+
+                              return PostCard(
+                                post: post_model.Post.fromMap(post, postId),
+                                onPostHidden: (id) {
+                                  // Immediately update the UI when a post is hidden
+                                  setState(() {
+                                    _hiddenPostIds.add(id);
+                                  });
+                                },
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
         ],
       ),
@@ -283,14 +277,14 @@ class _FeedScreenState extends State<FeedScreen> {
             MaterialPageRoute(
               builder: (_) => const CreatePostScreen(),
             ),
-          ).then((_) => _loadPosts());
+          );
         },
         child: const Icon(Icons.add),
       ),
     );
   }
 
-  // Add this helper method
+  // Helper methods for category colors
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'Question':
@@ -313,9 +307,6 @@ class _FeedScreenState extends State<FeedScreen> {
   Color _getCategoryColorWithOpacity(String category, double opacity) {
     final Color baseColor = _getCategoryColor(category);
     return Color.fromRGBO(
-        baseColor.r.toInt(), // Add toInt() here
-        baseColor.g.toInt(), // Add toInt() here
-        baseColor.b.toInt(), // Add toInt() here
-        opacity);
+        baseColor.red, baseColor.green, baseColor.blue, opacity);
   }
 }

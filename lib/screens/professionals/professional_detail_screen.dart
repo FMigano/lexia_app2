@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lexia_app/screens/chat/chat_screen.dart'; // Fix import path
+import 'package:lexia_app/screens/chat/chat_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ProfessionalDetailScreen extends StatelessWidget {
@@ -56,8 +56,6 @@ class ProfessionalDetailScreen extends StatelessWidget {
           final about = data['about'] as String? ?? 'No information provided.';
           final experience = data['experience'] as int? ?? 0;
           final education = data['education'] as String? ?? 'Not specified';
-          final rating = (data['rating'] as num?)?.toDouble() ?? 0.0;
-          final ratingCount = data['ratingCount'] as int? ?? 0;
           final services = List<String>.from(data['services'] ?? []);
 
           return SingleChildScrollView(
@@ -101,21 +99,6 @@ class ProfessionalDetailScreen extends StatelessWidget {
                             ),
                             overflow: TextOverflow.ellipsis,
                             maxLines: 1,
-                          ),
-                          Row(
-                            children: [
-                              Icon(Icons.star, size: 16, color: Colors.amber),
-                              const SizedBox(width: 4),
-                              Text(
-                                rating > 0
-                                    ? '$rating (${ratingCount.toString()})'
-                                    : 'No ratings yet',
-                                style: GoogleFonts.poppins(
-                                  fontSize: 12,
-                                  color: Colors.grey.shade700,
-                                ),
-                              ),
-                            ],
                           ),
                         ],
                       ),
@@ -174,62 +157,12 @@ class ProfessionalDetailScreen extends StatelessWidget {
                       );
                     }).toList(),
                   ),
-                  const SizedBox(height: 16),
                 ],
-                Text(
-                  'Reviews',
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _ReviewsList(professionalId: professionalId),
-                const SizedBox(height: 80), // Extra space for FAB
+                const SizedBox(height: 16),
               ],
             ),
           );
         },
-      ),
-      bottomNavigationBar: BottomAppBar(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.chat_outlined),
-                  label: Text(
-                    'Message',
-                    style: GoogleFonts.poppins(),
-                  ),
-                  onPressed: () => _startChat(context),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.calendar_today),
-                  label: Text(
-                    'Book Appointment',
-                    style: GoogleFonts.poppins(),
-                  ),
-                  onPressed: () {
-                    // Implement appointment booking
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ),
     );
   }
@@ -339,119 +272,6 @@ class _InfoRow extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _ReviewsList extends StatelessWidget {
-  final String professionalId;
-
-  const _ReviewsList({required this.professionalId});
-
-  @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('users') // Change from 'professionals' to 'users'
-          .doc(professionalId)
-          .collection('reviews')
-          .orderBy('createdAt', descending: true)
-          .limit(5)
-          .snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting &&
-            !snapshot.hasData) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Text('Error loading reviews: ${snapshot.error}');
-        }
-
-        final reviews = snapshot.data?.docs ?? [];
-
-        if (reviews.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(
-              'No reviews yet.',
-              style: GoogleFonts.poppins(
-                fontStyle: FontStyle.italic,
-                color: Colors.grey,
-              ),
-            ),
-          );
-        }
-
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: reviews.length,
-          itemBuilder: (context, index) {
-            final review = reviews[index].data() as Map<String, dynamic>;
-
-            return Card(
-              margin: const EdgeInsets.only(bottom: 8),
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 16,
-                          backgroundImage: review['authorPhotoUrl'] != null &&
-                                  review['authorPhotoUrl'] != ''
-                              ? NetworkImage(
-                                  review['authorPhotoUrl'] as String,
-                                )
-                              : null,
-                          child: review['authorPhotoUrl'] == null ||
-                                  review['authorPhotoUrl'] == ''
-                              ? Text(
-                                  (review['authorName'] as String? ?? '?')[0]
-                                      .toUpperCase(),
-                                )
-                              : null,
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            review['authorName'] as String? ?? 'Anonymous',
-                            style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                        Row(
-                          children: List.generate(5, (i) {
-                            return Icon(
-                              i < (review['rating'] as num? ?? 0)
-                                  ? Icons.star
-                                  : Icons.star_border,
-                              size: 16,
-                              color: Colors.amber,
-                            );
-                          }),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      review['comment'] as String? ?? '',
-                      style: GoogleFonts.poppins(
-                        fontSize: 14,
-                        height: 1.4,
-                        color: Colors.grey.shade800,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
     );
   }
 }

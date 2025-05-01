@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vaultech.lexia"
+    namespace = "com.vaultech.lexia"  // Changed to use = assignment for Kotlin DSL
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"  // Update NDK version to match plugins
 

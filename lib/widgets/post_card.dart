@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:lexia_app/models/post.dart';
+import 'package:lexia_app/models/post.dart' as post_model;
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:lexia_app/screens/comments/comments_screen.dart';
 import 'package:lexia_app/screens/posts/edit_post_screen.dart';
@@ -11,9 +11,14 @@ import 'package:lexia_app/services/post_service.dart';
 import 'dart:convert';
 
 class PostCard extends StatefulWidget {
-  final Post post;
+  final post_model.Post post;
+  final Function(String)? onPostHidden; // Add this callback
 
-  const PostCard({super.key, required this.post});
+  const PostCard({
+    super.key,
+    required this.post,
+    this.onPostHidden, // Optional callback
+  });
 
   @override
   State<PostCard> createState() => _PostCardState();
@@ -258,6 +263,13 @@ class _PostCardState extends State<PostCard> {
     // Capture the ScaffoldMessenger before the async operation
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
+    if (_currentUserId.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(content: Text('You need to be logged in to hide posts')),
+      );
+      return;
+    }
+
     // Create a reference to store hidden posts for the current user
     try {
       await _firestore
@@ -267,7 +279,14 @@ class _PostCardState extends State<PostCard> {
           .doc(widget.post.id)
           .set({
         'hiddenAt': FieldValue.serverTimestamp(),
+        'postId':
+            widget.post.id, // Store the post ID explicitly for easier querying
       });
+
+      // Call the callback to notify the parent widget
+      if (widget.onPostHidden != null) {
+        widget.onPostHidden!(widget.post.id);
+      }
 
       if (mounted) {
         // Notify user - use the captured scaffoldMessenger
@@ -580,8 +599,6 @@ class _PostCardState extends State<PostCard> {
                   onSelected: (value) {
                     if (value == 'hide') {
                       _hidePost(context);
-                    } else if (value == 'report') {
-                      _reportPost(context);
                     } else if (value == 'edit') {
                       _editPost(context);
                     } else if (value == 'delete') {
@@ -610,20 +627,12 @@ class _PostCardState extends State<PostCard> {
                       ),
                       const PopupMenuDivider(),
                     ],
-                    // Show these options for all users
+                    // Show hide option for all users
                     const PopupMenuItem(
                       value: 'hide',
                       child: ListTile(
                         leading: Icon(Icons.visibility_off),
                         title: Text('Hide Post'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'report',
-                      child: ListTile(
-                        leading: Icon(Icons.flag),
-                        title: Text('Report Post'),
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
@@ -660,97 +669,55 @@ class _PostCardState extends State<PostCard> {
               ],
             ),
           ),
-          if (widget.post.mediaUrls.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            SizedBox(
+          if (widget.post.mediaUrls.isNotEmpty)
+            Container(
               height: 200,
-              child: PageView.builder(
+              margin: const EdgeInsets.symmetric(vertical: 8.0),
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
                 itemCount: widget.post.mediaUrls.length,
                 itemBuilder: (context, index) {
                   final imageUrl = widget.post.mediaUrls[index];
+                  debugPrint('Loading image from URL: $imageUrl');
 
-                  // Check if this is a base64 image (for backward compatibility)
-                  if (imageUrl.startsWith('data:image')) {
-                    try {
-                      // Extract the base64 data after the comma
-                      final base64String = imageUrl.split(',')[1];
-
-                      // Add padding if needed (this is the key fix)
-                      final padding = base64String.length % 4;
-                      final paddedBase64 = padding > 0
-                          ? base64String + ('=' * (4 - padding))
-                          : base64String;
-
-                      try {
-                        // Decode with proper padding
-                        final decodedData = base64Decode(paddedBase64);
-
-                        return ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image(
-                            image: MemoryImage(decodedData),
-                            fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) {
-                              debugPrint('Error displaying image: $error');
-                              return const Center(
-                                child: Icon(Icons.broken_image,
-                                    size: 50, color: Colors.grey),
-                              );
-                            },
-                          ),
-                        );
-                      } catch (decodeError) {
-                        debugPrint('Base64 decoding failed: $decodeError');
-                        return const Center(
-                          child: Icon(Icons.error, size: 50, color: Colors.red),
-                        );
-                      }
-                    } catch (e) {
-                      debugPrint('Base64 processing error: $e');
-                      return const Center(
-                        child: Icon(Icons.error_outline,
-                            size: 50, color: Colors.red),
-                      );
-                    }
-                  } else {
-                    // Handle URLs from Firebase Storage
-                    return ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 12.0, right: 4.0),
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(8.0),
                       child: CachedNetworkImage(
                         imageUrl: imageUrl,
+                        width: MediaQuery.of(context).size.width * 0.8,
+                        height: 200,
                         fit: BoxFit.cover,
-                        placeholder: (context, url) => const Center(
-                          child: CircularProgressIndicator(),
+                        placeholder: (context, url) => Container(
+                          color: Colors.grey[200],
+                          child:
+                              const Center(child: CircularProgressIndicator()),
                         ),
                         errorWidget: (context, url, error) {
-                          debugPrint('Error loading network image: $error');
-                          return const Center(
-                            child: Icon(Icons.broken_image,
-                                size: 50, color: Colors.grey),
+                          debugPrint(
+                              'Failed to load image: $url, Error: $error');
+                          return Container(
+                            width: MediaQuery.of(context).size.width * 0.8,
+                            height: 200,
+                            color: Colors.grey[200],
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(Icons.broken_image, size: 50),
+                                const SizedBox(height: 8),
+                                Text('Error: $error',
+                                    textAlign: TextAlign.center),
+                              ],
+                            ),
                           );
                         },
                       ),
-                    );
-                  }
+                    ),
+                  );
                 },
               ),
             ),
-            const SizedBox(height: 12),
-            // Test image - remove after debugging
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.blue),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  const Text("Test Base64 Image (should show a red pixel):"),
-                  _createTestImage(),
-                ],
-              ),
-            ),
-          ],
           StreamBuilder<DocumentSnapshot>(
             stream: FirebaseFirestore.instance
                 .collection('posts')
