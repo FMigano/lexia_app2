@@ -7,10 +7,12 @@ import 'package:google_fonts/google_fonts.dart';
 
 class ChatListScreen extends StatefulWidget {
   final bool showAppBar;
+  final String? initialAction;
 
   const ChatListScreen({
     super.key,
     this.showAppBar = true,
+    this.initialAction,
   });
 
   @override
@@ -18,6 +20,28 @@ class ChatListScreen extends StatefulWidget {
 }
 
 class _ChatListScreenState extends State<ChatListScreen> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Handle initial actions if specified
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (widget.initialAction != null) {
+        switch (widget.initialAction) {
+          case 'self_notes':
+            _createSelfChat();
+            break;
+          case 'find_parent':
+            _findUserByEmail('parent');
+            break;
+          case 'find_professional':
+            _findUserByEmail('professional');
+            break;
+        }
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return widget.showAppBar
@@ -30,6 +54,42 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   fontWeight: FontWeight.w600,
                 ),
               ),
+              actions: [
+                // Add "Notes to Self" button
+                IconButton(
+                  icon: const Icon(Icons.note_add),
+                  tooltip: 'Notes to Self',
+                  onPressed: _createSelfChat,
+                ),
+                // Add popup menu for finding users
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.person_add),
+                  tooltip: 'Find User',
+                  onSelected: (value) {
+                    if (value == 'parent') {
+                      _findUserByEmail('parent');
+                    } else if (value == 'professional') {
+                      _findUserByEmail('professional');
+                    }
+                  },
+                  itemBuilder: (context) => [
+                    PopupMenuItem(
+                      value: 'parent',
+                      child: Text(
+                        'Find Parent',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'professional',
+                      child: Text(
+                        'Find Professional',
+                        style: GoogleFonts.poppins(),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
             body: _buildChatList(),
           )
@@ -170,8 +230,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     String photoUrl = '';
                     bool isProfessional = false;
 
-                    if (userSnapshot.connectionState ==
-                            ConnectionState.done &&
+                    if (userSnapshot.connectionState == ConnectionState.done &&
                         userSnapshot.hasData &&
                         userSnapshot.data!.exists) {
                       final userData =
@@ -207,18 +266,16 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     Container(
                                       width: 60,
                                       height: 60,
-                                      margin:
-                                          const EdgeInsets.only(right: 16),
+                                      margin: const EdgeInsets.only(right: 16),
                                       child: photoUrl.isNotEmpty
                                           ? CircleAvatar(
                                               backgroundImage:
                                                   NetworkImage(photoUrl))
                                           : CircleAvatar(
-                                              backgroundColor:
-                                                  Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withAlpha(51),
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withAlpha(51),
                                               child: Text(
                                                 name.isNotEmpty
                                                     ? name[0].toUpperCase()
@@ -243,8 +300,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                             color: Colors.blue.shade700,
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                                color: Colors.white,
-                                                width: 2),
+                                                color: Colors.white, width: 2),
                                           ),
                                           child: const Icon(
                                             Icons.verified,
@@ -308,9 +364,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     const SizedBox(width: 8),
                                     ElevatedButton(
                                       onPressed: () => _acceptChatRequest(
-                                          chatDoc.id,
-                                          otherParticipantId,
-                                          name),
+                                          chatDoc.id, otherParticipantId, name),
                                       style: ElevatedButton.styleFrom(
                                         backgroundColor: Theme.of(context)
                                             .colorScheme
@@ -344,8 +398,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: BorderSide(
-                        color: Colors.grey.withAlpha(26), width: 1),
+                    side:
+                        BorderSide(color: Colors.grey.withAlpha(26), width: 1),
                   ),
                   color: Theme.of(context).colorScheme.surface,
                   child: InkWell(
@@ -524,16 +578,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           ),
                           actions: [
                             TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop(false),
+                              onPressed: () => Navigator.of(context).pop(false),
                               child: Text(
                                 'Cancel',
                                 style: GoogleFonts.poppins(),
                               ),
                             ),
                             TextButton(
-                              onPressed: () =>
-                                  Navigator.of(context).pop(true),
+                              onPressed: () => Navigator.of(context).pop(true),
                               child: Text(
                                 'Delete',
                                 style: GoogleFonts.poppins(
@@ -668,8 +720,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     Container(
                                       width: 60,
                                       height: 60,
-                                      margin:
-                                          const EdgeInsets.only(right: 16),
+                                      margin: const EdgeInsets.only(right: 16),
                                       decoration: BoxDecoration(
                                         shape: BoxShape.circle,
                                         border: Border.all(
@@ -687,11 +738,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                   NetworkImage(photoUrl),
                                             )
                                           : CircleAvatar(
-                                              backgroundColor:
-                                                  Theme.of(context)
-                                                      .colorScheme
-                                                      .primary
-                                                      .withAlpha(51),
+                                              backgroundColor: Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                                  .withAlpha(51),
                                               child: Text(
                                                 name.isNotEmpty
                                                     ? name[0].toUpperCase()
@@ -716,8 +766,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                             color: Colors.blue.shade700,
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                                color: Colors.white,
-                                                width: 2),
+                                                color: Colors.white, width: 2),
                                           ),
                                           child: const Icon(
                                             Icons.verified,
@@ -776,8 +825,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                                     : Colors.grey.shade600,
                                               ),
                                               maxLines: 1,
-                                              overflow:
-                                                  TextOverflow.ellipsis,
+                                              overflow: TextOverflow.ellipsis,
                                             ),
                                           ),
                                           if (unreadCount > 0)
@@ -1004,94 +1052,207 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
 
     try {
-      // Search for user by email and role
+      // Search for user by email (not filtering by role initially)
       final querySnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: email)
-          .where('role', isEqualTo: userRole)
           .get();
 
       if (!mounted) return;
 
-      if (querySnapshot.docs.isEmpty) {
-        scaffoldMessenger.showSnackBar(
-          SnackBar(
-            content: Text(
-              'No $userRole found with that email',
-              style: GoogleFonts.poppins(),
+      // User found case
+      if (querySnapshot.docs.isNotEmpty) {
+        final userDoc = querySnapshot.docs.first;
+        final userData = userDoc.data();
+        final userId = userDoc.id;
+        final name = userData['name'] as String? ?? 'Unknown User';
+        final foundUserRole = userData['role'] as String? ?? 'unknown';
+
+        // Check if roles match what we're looking for
+        if (foundUserRole != userRole) {
+          // User exists but with wrong role, ask if they want to continue anyway
+          final continueAnyway = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(
+                'User Role Mismatch',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              content: Text(
+                'This user is registered as a ${foundUserRole.capitalize()}, not a ${userRole.capitalize()}. Would you like to connect with them anyway?',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text(
+                    'Cancel',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: Text(
+                    'Continue',
+                    style: GoogleFonts.poppins(
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
+          );
 
-      final userDoc = querySnapshot.docs.first;
-      final userData = userDoc.data();
-      final userId = userDoc.id;
-      final name = userData['name'] as String? ?? 'Unknown User';
-
-      // Check if chat already exists
-      final existingChatQuery = await FirebaseFirestore.instance
-          .collection('chats')
-          .where('participants', arrayContains: currentUser.uid)
-          .get();
-
-      String? existingChatId;
-
-      for (final doc in existingChatQuery.docs) {
-        final List<String> participants =
-            List<String>.from(doc['participants']);
-        if (participants.contains(userId) && participants.length == 2) {
-          existingChatId = doc.id;
-          break;
+          if (continueAnyway != true) return;
         }
-      }
 
-      if (existingChatId != null) {
-        // Chat already exists, navigate to it
+        // Check if chat already exists
+        final existingChatQuery = await FirebaseFirestore.instance
+            .collection('chats')
+            .where('participants', arrayContains: currentUser.uid)
+            .get();
+
+        String? existingChatId;
+
+        for (final doc in existingChatQuery.docs) {
+          final List<String> participants =
+              List<String>.from(doc['participants']);
+          if (participants.contains(userId) && participants.length == 2) {
+            existingChatId = doc.id;
+            break;
+          }
+        }
+
+        if (existingChatId != null) {
+          // Chat already exists, navigate to it
+          if (!mounted) return;
+
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => ChatScreen(
+                chatId: existingChatId!,
+                otherUserId: userId,
+                otherUserName: name,
+              ),
+            ),
+          );
+          return;
+        }
+
+        // Create new chat request
+        final newChatRef = FirebaseFirestore.instance.collection('chats').doc();
+        final timestamp = FieldValue.serverTimestamp();
+
+        await newChatRef.set({
+          'participants': [currentUser.uid, userId],
+          'createdAt': timestamp,
+          'lastMessage': 'Chat request sent',
+          'lastMessageTime': timestamp,
+          'lastMessageSender': 'system',
+          'unreadCount.${currentUser.uid}': 0,
+          'unreadCount.$userId': 1, // Set unread for recipient
+          'status': 'pending', // Add status field
+          'requestedBy': currentUser.uid, // Add requestedBy field
+        });
+
         if (!mounted) return;
 
+        // Navigate to the pending chat
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => ChatScreen(
-              chatId: existingChatId!,
+              chatId: newChatRef.id,
               otherUserId: userId,
               otherUserName: name,
+              isPending: true,
             ),
           ),
         );
 
-        return;
-      }
-
-      // Create new chat
-      final newChatRef = FirebaseFirestore.instance.collection('chats').doc();
-      final timestamp = FieldValue.serverTimestamp();
-
-      await newChatRef.set({
-        'participants': [currentUser.uid, userId],
-        'createdAt': timestamp,
-        'lastMessage': 'Chat request sent',
-        'lastMessageTime': timestamp,
-        'lastMessageSender': 'system',
-        'unreadCount.${currentUser.uid}': 0,
-        'unreadCount.$userId': 1, // Set unread for recipient
-        'status': 'pending', // Add status field
-        'requestedBy': currentUser.uid, // Add requestedBy field
-      });
-
-      if (!mounted) return;
-
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => ChatScreen(
-            chatId: newChatRef.id,
-            otherUserId: userId,
-            otherUserName: name,
+        scaffoldMessenger.showSnackBar(
+          SnackBar(
+            content: Text(
+              'Chat request sent to $name',
+              style: GoogleFonts.poppins(),
+            ),
+            backgroundColor: Colors.green,
           ),
-        ),
-      );
+        );
+      } else {
+        // User not found - create placeholder and send invite
+
+        // Ask if they want to send an invite
+        final sendInvite = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              'User Not Found',
+              style: GoogleFonts.poppins(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            content: Text(
+              'No registered $userRole found with email $email. Would you like to send them an invitation to join Lexia?',
+              style: GoogleFonts.poppins(
+                fontSize: 14,
+                height: 1.5,
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: Text(
+                  'Cancel',
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: Text(
+                  'Send Invite',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+
+        if (sendInvite == true) {
+          // Create invitation record in a separate collection
+          await FirebaseFirestore.instance.collection('invitations').add({
+            'invitedEmail': email,
+            'invitedBy': currentUser.uid,
+            'inviterName': currentUser.displayName ?? 'A Lexia user',
+            'desiredRole': userRole,
+            'createdAt': FieldValue.serverTimestamp(),
+            'status': 'pending',
+          });
+
+          if (!mounted) return;
+
+          // Show confirmation
+          scaffoldMessenger.showSnackBar(
+            SnackBar(
+              content: Text(
+                'Invitation sent to $email',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      }
     } catch (e) {
       debugPrint('Error finding user: $e');
       if (!mounted) return;

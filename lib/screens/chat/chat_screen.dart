@@ -8,12 +8,14 @@ class ChatScreen extends StatefulWidget {
   final String chatId;
   final String otherUserId;
   final String otherUserName;
+  final bool isPending; // Add this parameter
 
   const ChatScreen({
     super.key,
     required this.chatId,
     required this.otherUserId,
     required this.otherUserName,
+    this.isPending = false, // Add with default value of false
   });
 
   @override
@@ -26,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
+  bool _isNetworkError = false;
 
   @override
   void initState() {
@@ -46,9 +49,51 @@ class _ChatScreenState extends State<ChatScreen> {
       await _firestore.collection('chats').doc(widget.chatId).update({
         'unreadCount.${_auth.currentUser?.uid}': 0,
       });
+
+      // If we got here, connection is working again
+      if (_isNetworkError && mounted) {
+        setState(() {
+          _isNetworkError = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error marking messages as read: $e');
+      if (e.toString().contains('network') ||
+          e.toString().contains('connection') ||
+          e.toString().contains('unavailable')) {
+        _handleNetworkError();
+      }
     }
+  }
+
+  void _handleNetworkError() {
+    if (!mounted) return;
+
+    setState(() {
+      _isNetworkError = true;
+    });
+
+    // Show a snackbar with retry option
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Network connection issue. Please check your internet connection.',
+          style: GoogleFonts.poppins(),
+        ),
+        backgroundColor: Colors.red,
+        duration: const Duration(seconds: 8),
+        action: SnackBarAction(
+          label: 'Retry',
+          onPressed: () {
+            setState(() {
+              _isNetworkError = false;
+            });
+            // Attempt to reconnect
+            _markMessagesAsRead();
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _sendMessage() async {
@@ -132,56 +177,104 @@ class _ChatScreenState extends State<ChatScreen> {
         children: [
           // Messages list
           Expanded(
-            child: StreamBuilder<QuerySnapshot>(
-              stream: _firestore
-                  .collection('chats')
-                  .doc(widget.chatId)
-                  .collection('messages')
-                  .orderBy('timestamp', descending: true)
-                  .snapshots(),
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
+            child: _isNetworkError
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.wifi_off,
+                            size: 64, color: Colors.grey),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Network connection error',
+                          style: GoogleFonts.poppins(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        ElevatedButton(
+                          onPressed: () {
+                            setState(() {
+                              _isNetworkError = false;
+                            });
+                            // Attempt to reconnect
+                            _markMessagesAsRead();
+                          },
+                          child: Text('Retry', style: GoogleFonts.poppins()),
+                        ),
+                      ],
+                    ),
+                  )
+                : StreamBuilder<QuerySnapshot>(
+                    stream: _firestore
+                        .collection('chats')
+                        .doc(widget.chatId)
+                        .collection('messages')
+                        .orderBy('timestamp', descending: true)
+                        .snapshots(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return const Center(child: CircularProgressIndicator());
+                      }
 
-                if (snapshot.hasError) {
-                  return Center(child: Text('Error: ${snapshot.error}'));
-                }
+                      if (snapshot.hasError) {
+                        // Handle error state
+                        _handleNetworkError();
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(Icons.error_outline,
+                                  size: 48, color: Colors.red),
+                              const SizedBox(height: 16),
+                              Text(
+                                'Error loading messages',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        );
+                      }
 
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return const Center(
-                    child: Text('No messages yet. Start a conversation!'),
-                  );
-                }
+                      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                        return const Center(
+                          child: Text('No messages yet. Start a conversation!'),
+                        );
+                      }
 
-                final messages = snapshot.data!.docs;
+                      final messages = snapshot.data!.docs;
 
-                return ListView.builder(
-                  controller: _scrollController,
-                  reverse: true,
-                  padding: const EdgeInsets.all(16),
-                  itemCount: messages.length,
-                  itemBuilder: (context, index) {
-                    final messageData =
-                        messages[index].data() as Map<String, dynamic>;
-                    final isMe =
-                        messageData['senderId'] == _auth.currentUser?.uid;
-                    final timestamp = messageData['timestamp'] as Timestamp?;
-                    final formattedTime = timestamp != null
-                        ? DateFormat.jm().format(timestamp.toDate())
-                        : '';
+                      return ListView.builder(
+                        controller: _scrollController,
+                        reverse: true,
+                        padding: const EdgeInsets.all(16),
+                        itemCount: messages.length,
+                        itemBuilder: (context, index) {
+                          final messageData =
+                              messages[index].data() as Map<String, dynamic>;
+                          final isMe =
+                              messageData['senderId'] == _auth.currentUser?.uid;
+                          final timestamp =
+                              messageData['timestamp'] as Timestamp?;
+                          final formattedTime = timestamp != null
+                              ? DateFormat.jm().format(timestamp.toDate())
+                              : '';
 
-                    return _MessageBubble(
-                      message: messageData['content'] as String? ?? '',
-                      isMe: isMe,
-                      time: formattedTime,
-                      senderName:
-                          messageData['senderName'] as String? ?? 'Unknown',
-                    );
-                  },
-                );
-              },
-            ),
+                          return _MessageBubble(
+                            message: messageData['content'] as String? ?? '',
+                            isMe: isMe,
+                            time: formattedTime,
+                            senderName: messageData['senderName'] as String? ??
+                                'Unknown',
+                          );
+                        },
+                      );
+                    },
+                  ),
           ),
           // Message input
           Container(

@@ -7,18 +7,20 @@ class ChatAndAppointmentsScreen extends StatefulWidget {
   const ChatAndAppointmentsScreen({super.key});
 
   @override
-  State<ChatAndAppointmentsScreen> createState() => _ChatAndAppointmentsScreenState();
+  State<ChatAndAppointmentsScreen> createState() =>
+      _ChatAndAppointmentsScreenState();
 }
 
-class _ChatAndAppointmentsScreenState extends State<ChatAndAppointmentsScreen> with SingleTickerProviderStateMixin {
+class _ChatAndAppointmentsScreenState extends State<ChatAndAppointmentsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -36,12 +38,69 @@ class _ChatAndAppointmentsScreenState extends State<ChatAndAppointmentsScreen> w
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          // Only show these actions when on the Chats tab
+          if (_tabController.index == 0) ...[
+            // Notes to Self button
+            IconButton(
+              icon: const Icon(Icons.note_add),
+              tooltip: 'Notes to Self',
+              onPressed: () {
+                // Since we're in a different class, we need to delegate to ChatListScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatListScreen(
+                      // Removed undefined key
+                      showAppBar: true,
+                      initialAction: 'self_notes',
+                    ),
+                  ),
+                );
+              },
+            ),
+            // Find User menu
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.person_add),
+              tooltip: 'Find User',
+              onSelected: (value) {
+                // Navigate to ChatListScreen with the selected action
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatListScreen(
+                      showAppBar: true,
+                      initialAction: value,
+                    ),
+                  ),
+                );
+              },
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  value: 'find_parent',
+                  child: Text(
+                    'Find Parent',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'find_professional',
+                  child: Text(
+                    'Find Professional',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
             Tab(text: 'Chats'),
             Tab(text: 'Appointments'),
           ],
+          onTap: (_) => setState(() {}), // Refresh to update action buttons
         ),
       ),
       body: TabBarView(
