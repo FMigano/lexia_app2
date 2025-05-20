@@ -6,7 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppointmentsScreen extends StatefulWidget {
   final bool showAppBar;
-  
+
   const AppointmentsScreen({
     super.key,
     this.showAppBar = true,
@@ -16,15 +16,16 @@ class AppointmentsScreen extends StatefulWidget {
   State<AppointmentsScreen> createState() => _AppointmentsScreenState();
 }
 
-class _AppointmentsScreenState extends State<AppointmentsScreen> with SingleTickerProviderStateMixin {
+class _AppointmentsScreenState extends State<AppointmentsScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
   }
-  
+
   @override
   void dispose() {
     _tabController.dispose();
@@ -34,7 +35,7 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> with SingleTick
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
-    
+
     if (currentUser == null) {
       return Scaffold(
         appBar: AppBar(title: const Text('My Appointments')),
@@ -42,57 +43,77 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> with SingleTick
       );
     }
 
-    final content = Column(
-      children: [
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(text: 'Upcoming'),
-            Tab(text: 'Past'),
-          ],
-        ),
-        Expanded(
-          child: TabBarView(
-            controller: _tabController,
+    return FutureBuilder<DocumentSnapshot>(
+        future: FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .get(),
+        builder: (context, userSnapshot) {
+          if (userSnapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(
+                body: Center(child: CircularProgressIndicator()));
+          }
+
+          final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+          final userRole = userData?['role'] as String? ?? 'parent';
+          final bool isProfessional = userRole == 'professional';
+
+          final content = Column(
             children: [
-              _AppointmentsList(
-                userId: currentUser.uid,
-                isPast: false,
+              TabBar(
+                controller: _tabController,
+                tabs: const [
+                  Tab(text: 'Upcoming'),
+                  Tab(text: 'Past'),
+                ],
               ),
-              _AppointmentsList(
-                userId: currentUser.uid,
-                isPast: true,
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _AppointmentsList(
+                      userId: currentUser.uid,
+                      isPast: false,
+                      isProfessional: isProfessional,
+                    ),
+                    _AppointmentsList(
+                      userId: currentUser.uid,
+                      isPast: true,
+                      isProfessional: isProfessional,
+                    ),
+                  ],
+                ),
               ),
             ],
-          ),
-        ),
-      ],
-    );
-    
-    return widget.showAppBar
-      ? Scaffold(
-          appBar: AppBar(
-            title: Text(
-              'My Appointments',
-              style: GoogleFonts.poppins(
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          body: content,
-        )
-      : content;
+          );
+
+          return widget.showAppBar
+              ? Scaffold(
+                  appBar: AppBar(
+                    title: Text(
+                      'My Appointments',
+                      style: GoogleFonts.poppins(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  body: content,
+                )
+              : content;
+        });
   }
 }
 
 class _AppointmentsList extends StatelessWidget {
   final String userId;
   final bool isPast;
+  final bool isProfessional;
 
   const _AppointmentsList({
     required this.userId,
     required this.isPast,
+    required this.isProfessional,
   });
 
   @override
@@ -100,18 +121,23 @@ class _AppointmentsList extends StatelessWidget {
     final now = DateTime.now();
 
     return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('appointments')
-          .where('userId', isEqualTo: userId)
-          .orderBy('appointmentTime', descending: isPast)
-          .snapshots(),
+      stream: isProfessional
+          ? FirebaseFirestore.instance
+              .collection('appointments')
+              .where('professionalId', isEqualTo: userId)
+              .orderBy('appointmentTime', descending: isPast)
+              .snapshots()
+          : FirebaseFirestore.instance
+              .collection('appointments')
+              .where('userId', isEqualTo: userId)
+              .orderBy('appointmentTime', descending: isPast)
+              .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
         if (snapshot.hasError) {
-          // Check specifically for index error
           if (snapshot.error.toString().contains('failed-precondition')) {
             return Center(
               child: Column(
@@ -142,17 +168,17 @@ class _AppointmentsList extends StatelessWidget {
               ),
             );
           }
-          
+
           return Center(child: Text('Error: ${snapshot.error}'));
         }
 
         final appointments = snapshot.data?.docs ?? [];
-        
-        // Filter appointments based on past/future
+
         final filteredAppointments = appointments.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
-          final appointmentTime = (data['appointmentTime'] as Timestamp).toDate();
-          
+          final appointmentTime =
+              (data['appointmentTime'] as Timestamp).toDate();
+
           if (isPast) {
             return appointmentTime.isBefore(now);
           } else {
@@ -172,9 +198,7 @@ class _AppointmentsList extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
                 Text(
-                  isPast 
-                      ? 'No past appointments' 
-                      : 'No upcoming appointments',
+                  isPast ? 'No past appointments' : 'No upcoming appointments',
                   style: GoogleFonts.poppins(
                     fontSize: 16,
                     color: Colors.grey,
@@ -202,12 +226,13 @@ class _AppointmentsList extends StatelessWidget {
           itemBuilder: (context, index) {
             final appointment = filteredAppointments[index];
             final data = appointment.data() as Map<String, dynamic>;
-            
+
             final professionalName = data['professionalName'] as String;
             final specialty = data['specialty'] as String;
-            final appointmentTime = (data['appointmentTime'] as Timestamp).toDate();
+            final appointmentTime =
+                (data['appointmentTime'] as Timestamp).toDate();
             final status = data['status'] as String;
-            
+
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               shape: RoundedRectangleBorder(
@@ -268,7 +293,8 @@ class _AppointmentsList extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             OutlinedButton(
-                              onPressed: () => _cancelAppointment(context, appointment.id),
+                              onPressed: () =>
+                                  _cancelAppointment(context, appointment.id),
                               child: const Text('CANCEL'),
                             ),
                           ],
@@ -287,7 +313,7 @@ class _AppointmentsList extends StatelessWidget {
   Widget _buildStatusChip(String status) {
     Color color;
     IconData icon;
-    
+
     switch (status) {
       case 'confirmed':
         color = Colors.green;
@@ -309,7 +335,7 @@ class _AppointmentsList extends StatelessWidget {
         color = Colors.grey;
         icon = Icons.circle;
     }
-    
+
     return Chip(
       avatar: Icon(icon, color: Colors.white, size: 16),
       label: Text(
@@ -321,13 +347,15 @@ class _AppointmentsList extends StatelessWidget {
       visualDensity: VisualDensity.compact,
     );
   }
-  
-  Future<void> _cancelAppointment(BuildContext context, String appointmentId) async {
+
+  Future<void> _cancelAppointment(
+      BuildContext context, String appointmentId) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Cancel Appointment'),
-        content: const Text('Are you sure you want to cancel this appointment?'),
+        content:
+            const Text('Are you sure you want to cancel this appointment?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
@@ -340,14 +368,14 @@ class _AppointmentsList extends StatelessWidget {
         ],
       ),
     );
-    
+
     if (confirmed == true) {
       try {
         await FirebaseFirestore.instance
             .collection('appointments')
             .doc(appointmentId)
             .update({'status': 'cancelled'});
-            
+
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Appointment cancelled')),

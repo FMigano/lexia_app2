@@ -3,6 +3,7 @@ import 'package:lexia_app/screens/home/feed_screen.dart';
 import 'package:lexia_app/screens/chat/chat_and_appointments_screen.dart';
 import 'package:lexia_app/screens/professionals/professionals_screen.dart';
 import 'package:lexia_app/screens/profile/profile_screen.dart';
+import 'package:lexia_app/screens/analytics/analytics_screen.dart'; // Add this import
 import 'package:provider/provider.dart';
 import 'package:lexia_app/providers/auth_provider.dart';
 import 'package:lexia_app/screens/posts/create_post_screen.dart';
@@ -19,11 +20,13 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
 
+  // Update the screens list to include the AnalyticsScreen
   final List<Widget> _screens = [
     const FeedScreen(),
-    const ChatAndAppointmentsScreen(), // Replace with combined screen
+    const ChatAndAppointmentsScreen(),
     const ProfessionalsScreen(),
-    const ProfileScreen(),
+    const AnalyticsScreen(), // Add the Analytics screen
+    const ProfileScreen(),   // Move profile to last tab
   ];
 
   @override
@@ -100,6 +103,11 @@ class _HomeScreenState extends State<HomeScreen> {
             icon: Icon(Icons.people_outlined),
             selectedIcon: Icon(Icons.people),
             label: 'Professional',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.bar_chart_outlined),  // Add Analytics icon
+            selectedIcon: Icon(Icons.bar_chart),
+            label: 'Analytics',
           ),
           NavigationDestination(
             icon: Icon(Icons.person_outlined),

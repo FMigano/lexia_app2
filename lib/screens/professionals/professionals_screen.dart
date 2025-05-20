@@ -17,6 +17,7 @@ class ProfessionalsScreen extends StatefulWidget {
 class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   String _selectedSpecialty = '';
   String _searchQuery = '';
+  String _sortBy = ''; // Add this variable to track sorting option
 
   final List<String> _specialties = [
     'All',
@@ -140,6 +141,33 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                   }).toList();
                 }
 
+                // Apply sorting if selected
+                if (_sortBy.isNotEmpty && professionals.length > 1) {
+                  professionals.sort((a, b) {
+                    final dataA = a.data() as Map<String, dynamic>;
+                    final dataB = b.data() as Map<String, dynamic>;
+
+                    switch (_sortBy) {
+                      case 'name_asc':
+                        final nameA =
+                            (dataA['name'] as String?)?.toLowerCase() ?? '';
+                        final nameB =
+                            (dataB['name'] as String?)?.toLowerCase() ?? '';
+                        return nameA.compareTo(nameB); // A-Z
+
+                      case 'name_desc':
+                        final nameA =
+                            (dataA['name'] as String?)?.toLowerCase() ?? '';
+                        final nameB =
+                            (dataB['name'] as String?)?.toLowerCase() ?? '';
+                        return nameB.compareTo(nameA); // Z-A
+
+                      default:
+                        return 0;
+                    }
+                  });
+                }
+
                 if (professionals.isEmpty) {
                   return const Center(
                     child: Text('No professionals match your search criteria.'),
@@ -188,32 +216,52 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Filter Professionals'),
+        title: Text(
+          'Sort Professionals',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Sort by:'),
+            Text(
+              'Sort by:',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
             const SizedBox(height: 8),
             ListTile(
-              title: const Text('Rating (High to Low)'),
+              title: Text(
+                'Name (A-Z)',
+                style: GoogleFonts.poppins(),
+              ),
               leading: Radio<String>(
-                value: 'rating',
-                groupValue: 'rating', // Add state management for this
+                value: 'name_asc',
+                groupValue: _sortBy,
                 onChanged: (value) {
+                  setState(() {
+                    _sortBy = value!;
+                  });
                   Navigator.pop(context);
-                  // Implement sorting
                 },
               ),
             ),
             ListTile(
-              title: const Text('Experience (Most to Least)'),
+              title: Text(
+                'Name (Z-A)',
+                style: GoogleFonts.poppins(),
+              ),
               leading: Radio<String>(
-                value: 'experience',
-                groupValue: 'rating',
+                value: 'name_desc',
+                groupValue: _sortBy,
                 onChanged: (value) {
+                  setState(() {
+                    _sortBy = value!;
+                  });
                   Navigator.pop(context);
-                  // Implement sorting
                 },
               ),
             ),
@@ -222,7 +270,10 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Close'),
+            child: Text(
+              'Close',
+              style: GoogleFonts.poppins(),
+            ),
           ),
         ],
       ),
@@ -421,7 +472,8 @@ class _ProfessionalCard extends StatelessWidget {
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
                         // Increase the date range to allow more years
-                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)), // 5 years ahead
+                        lastDate: DateTime.now().add(
+                            const Duration(days: 365 * 5)), // 5 years ahead
                         // Add these settings to improve year selection
                         initialDatePickerMode: DatePickerMode.day,
                         selectableDayPredicate: (DateTime date) {
@@ -434,7 +486,8 @@ class _ProfessionalCard extends StatelessWidget {
                             data: Theme.of(context).copyWith(
                               dialogTheme: const DialogTheme(
                                 shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.all(Radius.circular(16)),
+                                  borderRadius:
+                                      BorderRadius.all(Radius.circular(16)),
                                 ),
                               ),
                             ),
@@ -526,7 +579,7 @@ class _ProfessionalCard extends StatelessWidget {
           appointmentDateTime,
           result['reason'] as String,
         );
-        
+
         // Then try adding to calendar (optional)
         try {
           final event = Event(
@@ -545,23 +598,23 @@ class _ProfessionalCard extends StatelessWidget {
               emailInvites: null,
             ),
           );
-          
+
           final bool addedToCalendar = await Add2Calendar.addEvent2Cal(event);
-          
+
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(
-                addedToCalendar 
-                    ? 'Appointment scheduled and added to calendar' 
-                    : 'Appointment scheduled successfully'
-              )),
+              SnackBar(
+                  content: Text(addedToCalendar
+                      ? 'Appointment scheduled and added to calendar'
+                      : 'Appointment scheduled successfully')),
             );
           }
         } catch (calendarError) {
           // Just show appointment scheduled message if calendar fails
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Appointment scheduled successfully')),
+              const SnackBar(
+                  content: Text('Appointment scheduled successfully')),
             );
           }
         }

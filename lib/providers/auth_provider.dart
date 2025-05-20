@@ -272,4 +272,22 @@ class AuthProvider with ChangeNotifier {
   }
 
   String? get errorMessage => _errorMessage;
+
+  Future<Map<String, dynamic>?> getUserAnalyticsData() async {
+    try {
+      if (_auth.currentUser == null) return null;
+      
+      final docSnapshot = await _firestore
+        .collection('users')
+        .doc(_auth.currentUser!.uid)
+        .get();
+        
+      if (!docSnapshot.exists) return null;
+      
+      return docSnapshot.data();
+    } catch (e) {
+      debugPrint('Error getting user analytics: $e');
+      return null;
+    }
+  }
 }
