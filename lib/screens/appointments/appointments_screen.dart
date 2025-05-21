@@ -174,6 +174,9 @@ class _AppointmentsList extends StatelessWidget {
 
         final appointments = snapshot.data?.docs ?? [];
 
+        // Check and update past appointments to "done" status
+        _updatePastAppointmentsStatus(appointments);
+
         final filteredAppointments = appointments.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final appointmentTime =
@@ -247,7 +250,10 @@ class _AppointmentsList extends StatelessWidget {
                       children: [
                         Expanded(
                           child: Text(
-                            professionalName,
+                            // If user is professional, show the user's name, otherwise show professional's name
+                            isProfessional
+                                ? (data['userName'] ?? 'Client')
+                                : professionalName,
                             style: GoogleFonts.poppins(
                               fontSize: 18,
                               fontWeight: FontWeight.w600,
@@ -257,8 +263,10 @@ class _AppointmentsList extends StatelessWidget {
                         _buildStatusChip(status),
                       ],
                     ),
+
+                    // Display role information based on who's viewing
                     Text(
-                      specialty,
+                      isProfessional ? 'Parent/Client' : specialty,
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -286,16 +294,50 @@ class _AppointmentsList extends StatelessWidget {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 16),
+                    // Show different buttons based on status and user role
                     if (!isPast && status == 'pending')
                       Padding(
-                        padding: const EdgeInsets.only(top: 16.0),
+                        padding: const EdgeInsets.only(top: 8.0),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
+                            // Show Accept button only to professionals for pending appointments
+                            if (isProfessional)
+                              Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: ElevatedButton(
+                                  onPressed: () => _acceptAppointment(
+                                      context, appointment.id),
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.green,
+                                    foregroundColor: Colors.white,
+                                  ),
+                                  child: const Text('ACCEPT'),
+                                ),
+                              ),
+
+                            // Show Cancel button to everyone for pending appointments
                             OutlinedButton(
                               onPressed: () =>
                                   _cancelAppointment(context, appointment.id),
                               child: const Text('CANCEL'),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                    // For accepted appointments, show Reschedule option
+                    if (!isPast && status == 'accepted')
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () => _rescheduleAppointment(
+                                  context, appointment.id),
+                              child: const Text('RESCHEDULE'),
                             ),
                           ],
                         ),
@@ -315,7 +357,11 @@ class _AppointmentsList extends StatelessWidget {
     IconData icon;
 
     switch (status) {
-      case 'confirmed':
+      case 'accepted':
+        color = Colors.green;
+        icon = Icons.check_circle;
+        break;
+      case 'confirmed': // Keep for backward compatibility
         color = Colors.green;
         icon = Icons.check_circle;
         break;
@@ -328,6 +374,7 @@ class _AppointmentsList extends StatelessWidget {
         icon = Icons.cancel;
         break;
       case 'completed':
+      case 'done':
         color = Colors.blue;
         icon = Icons.verified;
         break;
@@ -390,4 +437,82 @@ class _AppointmentsList extends StatelessWidget {
       }
     }
   }
+
+  Future<void> _acceptAppointment(
+      BuildContext context, String appointmentId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('appointments')
+          .doc(appointmentId)
+          .update({'status': 'accepted'});
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Appointment accepted')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error accepting appointment: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _rescheduleAppointment(
+      BuildContext context, String appointmentId) async {
+    // This would typically show a date/time picker and then update the appointment
+    // For now, just show a placeholder message
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reschedule functionality coming soon')),
+      );
+    }
+  }
+
+  void _updatePastAppointmentsStatus(List<QueryDocumentSnapshot> appointments) {
+    final now = DateTime.now();
+
+    for (final doc in appointments) {
+      final data = doc.data() as Map<String, dynamic>;
+      final appointmentTime = (data['appointmentTime'] as Timestamp).toDate();
+      final status = data['status'] as String;
+
+      // If appointment is in the past, has been accepted, and isn't already marked
+      // cancelled, completed, or done, update it to "done"
+      if (appointmentTime.isBefore(now) &&
+          (status == 'accepted' || status == 'confirmed') &&
+          status != 'cancelled' &&
+          status != 'completed' &&
+          status != 'done') {
+        // Update to "done" status
+        FirebaseFirestore.instance
+            .collection('appointments')
+            .doc(doc.id)
+            .update({'status': 'done'}).catchError(
+                (e) => debugPrint('Error updating appointment status: $e'));
+      }
+    }
+  }
 }
+
+// Add userName field when booking appointments (add this where appointments are created)
+// Example: Define the required variables before using them
+final currentUser = FirebaseAuth.instance.currentUser;
+final professionalId = 'someProfessionalId'; // Replace with actual value
+final professionalName = 'Some Professional'; // Replace with actual value
+final specialty = 'Specialty'; // Replace with actual value
+final appointmentTime = DateTime.now().add(const Duration(days: 1)); // Replace with actual value
+
+final appointmentData = {
+  'userId': currentUser?.uid ?? '',
+  'userName': currentUser?.displayName ?? 'User',
+  'professionalId': professionalId,
+  'professionalName': professionalName,
+  'specialty': specialty,
+  'appointmentTime': appointmentTime,
+  'status': 'pending',
+  'createdAt': FieldValue.serverTimestamp(),
+  // Any other fields...
+};

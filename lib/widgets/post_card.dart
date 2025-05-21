@@ -9,6 +9,7 @@ import 'package:lexia_app/screens/posts/edit_post_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lexia_app/services/post_service.dart';
 import 'dart:convert';
+import 'dart:math';
 
 class PostCard extends StatefulWidget {
   final post_model.Post post;
@@ -328,42 +329,44 @@ class _PostCardState extends State<PostCard> {
     // Capture the ScaffoldMessenger before the async operation
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
+    if (_currentUserId.isEmpty) {
+      scaffoldMessenger.showSnackBar(
+        const SnackBar(
+            content: Text('You need to be logged in to report posts')),
+      );
+      return;
+    }
+
     // Show dialog to confirm report and select reason
     final reason = await showDialog<String>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Report Post'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Text('Why are you reporting this post?'),
-            const SizedBox(height: 16),
-            ListView(
-              shrinkWrap: true,
-              children: [
-                ListTile(
-                  title: const Text('Inappropriate content'),
-                  onTap: () => Navigator.of(context).pop('inappropriate'),
-                ),
-                ListTile(
-                  title: const Text('Spam'),
-                  onTap: () => Navigator.of(context).pop('spam'),
-                ),
-                ListTile(
-                  title: const Text('False information'),
-                  onTap: () => Navigator.of(context).pop('misinformation'),
-                ),
-                ListTile(
-                  title: const Text('Harassment or bullying'),
-                  onTap: () => Navigator.of(context).pop('harassment'),
-                ),
-                ListTile(
-                  title: const Text('Other'),
-                  onTap: () => Navigator.of(context).pop('other'),
-                ),
-              ],
-            ),
-          ],
+        title: Text(
+          'Report Post',
+          style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+        ),
+        content: SingleChildScrollView(
+          // Change from Column to SingleChildScrollView
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Why are you reporting this post?',
+                style: GoogleFonts.poppins(),
+              ),
+              const SizedBox(height: 16),
+              // Removed nested ListView and replaced with Column of buttons
+              _buildReportOption(
+                  context, 'Inappropriate content', 'inappropriate'),
+              _buildReportOption(context, 'Spam', 'spam'),
+              _buildReportOption(
+                  context, 'False information', 'misinformation'),
+              _buildReportOption(
+                  context, 'Harassment or bullying', 'harassment'),
+              _buildReportOption(context, 'Other', 'other'),
+            ],
+          ),
         ),
         actions: [
           TextButton(
@@ -375,31 +378,103 @@ class _PostCardState extends State<PostCard> {
     );
 
     if (reason != null && mounted) {
+      // Show loading indicator
+      final loadingDialog = showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          content: Row(
+            children: [
+              const CircularProgressIndicator(),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Text(
+                  'Submitting report...',
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+
       try {
-        // Store the report in Firestore
-        await _firestore.collection('reported_posts').add({
+        // Store the report in Firestore FIRST
+        debugPrint('Attempting to create report in Firestore...');
+
+        final reportData = {
           'postId': widget.post.id,
           'reportedBy': _currentUserId,
           'authorId': widget.post.authorId,
           'reason': reason,
           'content': widget.post.content,
+          'title': widget.post.title,
+          'category': widget.post.category,
           'reportedAt': FieldValue.serverTimestamp(),
-        });
+          'status': 'pending',
+        };
 
-        // Also hide the post for the user
-        await _firestore
-            .collection('users')
-            .doc(_currentUserId)
-            .collection('hidden_posts')
-            .doc(widget.post.id)
-            .set({
-          'hiddenAt': FieldValue.serverTimestamp(),
-          'wasReported': true,
-          'reportReason': reason,
-        });
+        debugPrint('Report data: $reportData');
+
+        final reportRef = await _firestore
+            .collection('reported_posts')
+            .add(reportData)
+            .timeout(const Duration(seconds: 10));
+
+        debugPrint('Report created with ID: ${reportRef.id}');
+
+        // Ask if the user also wants to hide the post
+        if (mounted) {
+          final shouldHide = await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: Text(
+                'Hide Post?',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+              ),
+              content: Text(
+                'Would you also like to hide this post from your feed?',
+                style: GoogleFonts.poppins(),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('No'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Yes'),
+                ),
+              ],
+            ),
+          );
+
+          // Only hide the post if the user confirms
+          if (shouldHide == true) {
+            await _firestore
+                .collection('users')
+                .doc(_currentUserId)
+                .collection('hidden_posts')
+                .doc(widget.post.id)
+                .set({
+              'hiddenAt': FieldValue.serverTimestamp(),
+              'wasReported': true,
+              'reportReason': reason,
+              'reportId': reportRef.id, // Link to the report
+            });
+
+            // Notify parent widget about the hidden post
+            if (widget.onPostHidden != null) {
+              widget.onPostHidden!(widget.post.id);
+            }
+          }
+        }
 
         if (mounted) {
-          // Use the captured scaffoldMessenger
+          // Close loading dialog when done
+          Navigator.of(context, rootNavigator: true).pop();
+
+          // Show success message
           scaffoldMessenger.showSnackBar(
             const SnackBar(
               content: Text(
@@ -408,15 +483,69 @@ class _PostCardState extends State<PostCard> {
             ),
           );
         }
-      } catch (e) {
+      } catch (e, stackTrace) {
+        // Close loading dialog on error
         if (mounted) {
-          // Use the captured scaffoldMessenger
-          scaffoldMessenger.showSnackBar(
-            SnackBar(content: Text('Could not report post: $e')),
-          );
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+
+        // Enhanced error logging
+        debugPrint('Error reporting post: $e');
+        debugPrint('Error stack trace: $stackTrace');
+
+        // Check for Firestore permission errors specifically
+        final errorMessage = e.toString().toLowerCase();
+        if (errorMessage.contains('permission') ||
+            errorMessage.contains('permission-denied')) {
+          debugPrint(
+              'This appears to be a Firestore permission error. Check your security rules.');
+
+          if (mounted) {
+            scaffoldMessenger.showSnackBar(
+              const SnackBar(
+                content: Text(
+                    'Permission error: Your account doesn\'t have access to report posts.'),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
+        } else {
+          // Generic error
+          if (mounted) {
+            scaffoldMessenger.showSnackBar(
+              SnackBar(
+                content: Text(
+                    'Could not report post: ${e.toString().substring(0, min(e.toString().length, 100))}'),
+                duration: Duration(seconds: 5),
+              ),
+            );
+          }
         }
       }
     }
+  }
+
+  // Helper method for report options
+  Widget _buildReportOption(BuildContext context, String title, String value) {
+    return InkWell(
+      onTap: () => Navigator.of(context).pop(value),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8.0),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                title,
+                style: GoogleFonts.poppins(
+                  fontSize: 15,
+                ),
+              ),
+            ),
+            Icon(Icons.arrow_forward_ios, size: 16, color: Colors.grey[400]),
+          ],
+        ),
+      ),
+    );
   }
 
   Color _getCategoryColor(String category) {
@@ -603,6 +732,8 @@ class _PostCardState extends State<PostCard> {
                       _editPost(context);
                     } else if (value == 'delete') {
                       _deletePost(context);
+                    } else if (value == 'report') {
+                      _reportPost(context); // Call the existing report method
                     }
                   },
                   itemBuilder: (context) => [
@@ -636,6 +767,16 @@ class _PostCardState extends State<PostCard> {
                         contentPadding: EdgeInsets.zero,
                       ),
                     ),
+                    // Add report option, but only if the current user is NOT the author
+                    if (_currentUserId != widget.post.authorId)
+                      const PopupMenuItem(
+                        value: 'report',
+                        child: ListTile(
+                          leading: Icon(Icons.flag, color: Colors.orange),
+                          title: Text('Report Post'),
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ),
                   ],
                 ),
               ],
@@ -670,52 +811,49 @@ class _PostCardState extends State<PostCard> {
             ),
           ),
           if (widget.post.mediaUrls.isNotEmpty)
-            Container(
-              height: 200,
-              margin: const EdgeInsets.symmetric(vertical: 8.0),
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: widget.post.mediaUrls.length,
-                itemBuilder: (context, index) {
-                  final imageUrl = widget.post.mediaUrls[index];
-                  debugPrint('Loading image from URL: $imageUrl');
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8.0),
+              child: SizedBox(
+                height: 200,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: widget.post.mediaUrls.length,
+                  itemBuilder: (context, index) {
+                    final imageUrl = widget.post.mediaUrls[index];
 
-                  return Padding(
-                    padding: const EdgeInsets.only(left: 12.0, right: 4.0),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8.0),
-                      child: CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        width: MediaQuery.of(context).size.width * 0.8,
-                        height: 200,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          color: Colors.grey[200],
-                          child:
-                              const Center(child: CircularProgressIndicator()),
-                        ),
-                        errorWidget: (context, url, error) {
-                          debugPrint(
-                              'Failed to load image: $url, Error: $error');
-                          return Container(
+                    return Padding(
+                      padding: const EdgeInsets.only(left: 12.0, right: 4.0),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.0),
+                        child: CachedNetworkImage(
+                          imageUrl: imageUrl,
+                          width: MediaQuery.of(context).size.width * 0.8,
+                          height: 200,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            color: Colors.grey[200],
                             width: MediaQuery.of(context).size.width * 0.8,
                             height: 200,
-                            color: Colors.grey[200],
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                const Icon(Icons.broken_image, size: 50),
-                                const SizedBox(height: 8),
-                                Text('Error: $error',
-                                    textAlign: TextAlign.center),
-                              ],
-                            ),
-                          );
-                        },
+                            child: const Center(
+                                child: CircularProgressIndicator()),
+                          ),
+                          errorWidget: (context, url, error) {
+                            debugPrint(
+                                'Failed to load image: $url, Error: $error');
+                            return Container(
+                              width: MediaQuery.of(context).size.width * 0.8,
+                              height: 200,
+                              color: Colors.grey[200],
+                              child: const Center(
+                                child: Icon(Icons.broken_image, size: 50),
+                              ),
+                            );
+                          },
+                        ),
                       ),
-                    ),
-                  );
-                },
+                    );
+                  },
+                ),
               ),
             ),
           StreamBuilder<DocumentSnapshot>(
