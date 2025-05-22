@@ -24,7 +24,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   // Calculated stats
   int _completionPercentage = 0;
   int _totalStagesCompleted = 0;
-  final int _totalPossibleStages = 30; // Assuming 3 dungeons with 10 stages each
+  final int _totalPossibleStages =
+      30; // Assuming 3 dungeons with 10 stages each
   int _daysActive = 0;
   int _energyEfficiency = 0;
 
@@ -65,7 +66,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         return;
       }
 
-      final doc = await _firestore.collection('users').doc(userId).get();
+      // Try to get data from dyslexia_users collection first
+      var doc = await _firestore.collection('dyslexia_users').doc(userId).get();
+
+      // If not found in dyslexia_users, try the regular users collection
+      if (!doc.exists) {
+        doc = await _firestore.collection('users').doc(userId).get();
+      }
 
       if (!doc.exists) {
         setState(() {
@@ -88,6 +95,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
+  // Update the _searchUserByUsername method to search in the dyslexia_users collection
   Future<void> _searchUserByUsername(String username) async {
     if (username.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -102,33 +110,93 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     });
 
     try {
-      final querySnapshot = await _firestore
-          .collection('users')
-          .where('username', isEqualTo: username.trim())
+      final searchTerm = username.trim().toLowerCase();
+      debugPrint('Searching for dyslexia user: $searchTerm');
+
+      // Try direct query first (most efficient)
+      // IMPORTANT: Collection changed from 'users' to 'dyslexia_users'
+      final usernameQuery = await _firestore
+          .collection(
+              'dyslexia_users') // Changed from 'users' to 'dyslexia_users'
+          .where('username', isEqualTo: searchTerm)
           .limit(1)
           .get();
 
-      if (querySnapshot.docs.isEmpty) {
+      if (usernameQuery.docs.isNotEmpty) {
+        final userData = usernameQuery.docs.first.data();
+        debugPrint('Found dyslexia user directly: ${userData['username']}');
+
         setState(() {
-          _error = 'User not found';
+          _userData = userData;
+          _calculateStats();
           _isSearching = false;
         });
+
+        // Close dialog
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
         return;
       }
 
-      setState(() {
-        _userData = querySnapshot.docs.first.data();
-        _calculateStats();
-        _isSearching = false;
-      });
+      // If no exact match, get all dyslexia users and do case-insensitive search
+      final querySnapshot = await _firestore.collection('dyslexia_users').get();
+      debugPrint('Retrieved ${querySnapshot.docs.length} total dyslexia users');
 
-      // Close the search dialog
-      if (context.mounted) {
-        Navigator.of(context).pop();
+      DocumentSnapshot? matchingDoc;
+
+      // Case-insensitive search, including both username and email
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+
+        // Check username
+        if (data['username'] != null) {
+          final docUsername = data['username'].toString().toLowerCase();
+
+          if (docUsername == searchTerm ||
+              docUsername.contains(searchTerm) ||
+              searchTerm.contains(docUsername)) {
+            debugPrint('Found username match: $docUsername');
+            matchingDoc = doc;
+            break;
+          }
+        }
+
+        // Check email if it contains the search term
+        if (matchingDoc == null &&
+            data['email'] != null &&
+            searchTerm.contains('@')) {
+          final email = data['email'].toString().toLowerCase();
+          if (email.contains(searchTerm) || searchTerm == email) {
+            debugPrint('Found email match: $email');
+            matchingDoc = doc;
+            break;
+          }
+        }
+      }
+
+      if (matchingDoc != null) {
+        final userData = matchingDoc.data() as Map<String, dynamic>;
+
+        debugPrint('User data fields: ${userData.keys.join(', ')}');
+
+        setState(() {
+          _userData = userData;
+          _calculateStats();
+          _isSearching = false;
+        });
+
+        // Close dialog
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      } else {
+        throw Exception('Game user not found');
       }
     } catch (e) {
+      debugPrint('Error searching game user: $e');
       setState(() {
-        _error = 'Error searching for user: ${e.toString()}';
+        _error = 'Game user not found. Try a different username.';
         _isSearching = false;
       });
     }
@@ -137,13 +205,29 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _calculateStats() {
     if (_userData == null) return;
 
-    // Calculate total stages completed
+    // Check if this is actually a game user
+    if (!(_userData!.containsKey('username') ||
+        _userData!.containsKey('dungeons_completed') ||
+        _userData!.containsKey('energy'))) {
+      debugPrint('Warning: Attempting to calculate stats for non-game user');
+    }
+
+    // Add null checks and default values for every field
+
+    // Handle for dungeons_completed being null
     _totalStagesCompleted = 0;
     if (_userData!['dungeons_completed'] != null) {
-      final dungeons = _userData!['dungeons_completed'] as Map<String, dynamic>;
-      dungeons.forEach((key, value) {
-        _totalStagesCompleted += (value['stages_completed'] as int? ?? 0);
-      });
+      try {
+        final dungeons =
+            _userData!['dungeons_completed'] as Map<String, dynamic>? ?? {};
+        dungeons.forEach((key, value) {
+          if (value is Map<String, dynamic>) {
+            _totalStagesCompleted += (value['stages_completed'] as int? ?? 0);
+          }
+        });
+      } catch (e) {
+        debugPrint('Error calculating stages completed: $e');
+      }
     }
 
     // Calculate completion percentage
@@ -209,7 +293,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text(
-          'Find User Stats',
+          'Find Dyslexia User Stats',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         content: Column(
@@ -219,9 +303,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               controller: _usernameController,
               decoration: const InputDecoration(
                 labelText: 'Username',
-                hintText: 'Enter exact username',
+                hintText: 'Enter username (e.g. lexia106)',
                 prefixIcon: Icon(Icons.person_search),
               ),
+              autofocus: true,
+              textInputAction: TextInputAction.search,
+              onSubmitted: (value) {
+                if (value.trim().isNotEmpty && !_isSearching) {
+                  _searchUserByUsername(value);
+                }
+              },
             ),
             const SizedBox(height: 16),
             _isSearching ? const CircularProgressIndicator() : Container(),
@@ -623,18 +714,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
         actions: [
-          // User search button
+          // User search button only - refresh button removed
           IconButton(
             icon: const Icon(Icons.person_search),
             onPressed: _showUserSearchDialog,
             tooltip: 'Search User',
           ),
-          // Refresh button
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _fetchUserData,
-            tooltip: 'Refresh Data',
-          ),
+          // Refresh button removed from here
         ],
       ),
       body: _isLoading
@@ -727,7 +813,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Level ${_userData?['user_level'] ?? 0}',
+                                    'Level ${_userData?['player_level'] ?? _userData?['user_level'] ?? 0}',
                                     style: GoogleFonts.poppins(
                                       fontSize: 14,
                                       color: Colors.grey[600],
@@ -743,7 +829,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         // Performance Summary Card - NEW SECTION
                         Card(
-                          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                          color: Theme.of(context)
+                              .colorScheme
+                              .surfaceContainerHighest,
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                           child: Padding(

@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart'; // For BuildContext
 // Keep the import but implement a conditional approach
 import 'package:google_sign_in/google_sign_in.dart'
     if (dart.library.html) 'package:lexia_app/util/web_google_sign_in.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
+
+import 'package:lexia_app/services/google_auth_service.dart'; // Import the new service
 
 enum UserRole { parent, professional }
 
@@ -87,7 +90,7 @@ class AuthProvider with ChangeNotifier {
     }
   }
 
-  Future<bool> signInWithGoogle() async {
+  Future<bool> signInWithGoogle(BuildContext context) async {
     try {
       _setLoading(true);
       UserCredential? userCredential;
@@ -136,6 +139,45 @@ class AuthProvider with ChangeNotifier {
       return false;
     } finally {
       _setLoading(false);
+    }
+  }
+
+  // Method to complete Google registration
+  Future<bool> completeGoogleRegistration({
+    required String fullName,
+    required String role,
+  }) async {
+    try {
+      _setLoading(true);
+      notifyListeners();
+
+      if (_user == null) {
+        _errorMessage = 'No user is signed in';
+        return false;
+      }
+
+      final GoogleAuthService googleAuthService = GoogleAuthService();
+      final success = await googleAuthService.completeGoogleUserRegistration(
+        uid: _user!.uid,
+        fullName: fullName,
+        role: role,
+        photoUrl: _user!.photoURL,
+      );
+
+      if (success) {
+        await _loadUserRole(); // Reload user data after registration
+      } else {
+        _errorMessage = 'Failed to complete registration';
+      }
+
+      return success;
+    } catch (e) {
+      _errorMessage = e.toString();
+      debugPrint('Error in completeGoogleRegistration: $_errorMessage');
+      return false;
+    } finally {
+      _setLoading(false);
+      notifyListeners();
     }
   }
 
@@ -276,14 +318,14 @@ class AuthProvider with ChangeNotifier {
   Future<Map<String, dynamic>?> getUserAnalyticsData() async {
     try {
       if (_auth.currentUser == null) return null;
-      
+
       final docSnapshot = await _firestore
-        .collection('users')
-        .doc(_auth.currentUser!.uid)
-        .get();
-        
+          .collection('users')
+          .doc(_auth.currentUser!.uid)
+          .get();
+
       if (!docSnapshot.exists) return null;
-      
+
       return docSnapshot.data();
     } catch (e) {
       debugPrint('Error getting user analytics: $e');

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:lexia_app/providers/auth_provider.dart';
-import 'package:lexia_app/screens/auth/register_screen.dart';
+import 'package:lexia_app/services/google_auth_service.dart';
+import 'package:lexia_app/screens/auth/google_registration_screen.dart';
 import 'package:lexia_app/screens/home/home_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart'; // For Provider
+import 'package:lexia_app/providers/auth_provider.dart'; // For AuthProvider
+import 'package:lexia_app/screens/auth/register_screen.dart'; // For RegisterScreen
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +15,8 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final GoogleAuthService _googleAuthService = GoogleAuthService();
+  final bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -48,24 +52,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _signInWithGoogle() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.signInWithGoogle();
-
-    if (success && mounted) {
-      Navigator.of(
-        context,
-      ).pushReplacement(MaterialPageRoute(builder: (_) => const HomeScreen()));
-    } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Google sign in failed. Please try again.'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
   Future<void> _forgotPassword() async {
     final emailController = TextEditingController();
     final formKey = GlobalKey<FormState>();
@@ -78,47 +64,60 @@ class _LoginScreenState extends State<LoginScreen> {
           'Reset Password',
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: emailController,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              labelText: 'Email',
-              labelStyle: GoogleFonts.poppins(fontSize: 14),
-              hintText: 'Enter your registered email',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+        content: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.8, // Limit width
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min, // Important to prevent overflow
+              children: [
+                TextFormField(
+                  controller: emailController,
+                  decoration: const InputDecoration(labelText: 'Email'),
+                  keyboardType: TextInputType.emailAddress,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your email';
+                    }
+                    if (!value.contains('@') || !value.contains('.')) {
+                      return 'Please enter a valid email';
+                    }
+                    return null;
+                  },
+                ),
+              ],
             ),
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return 'Please enter your email';
-              }
-              if (!value.contains('@') || !value.contains('.')) {
-                return 'Please enter a valid email';
-              }
-              return null;
-            },
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState?.validate() ?? false) {
-                Navigator.of(context).pop(emailController.text.trim());
-              }
-            },
-            child: Text(
-              'Reset',
-              style: GoogleFonts.poppins(),
+          // Use a Column instead of Row for narrow dialogs
+          SizedBox(
+            width: double.infinity,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (formKey.currentState?.validate() ?? false) {
+                        Navigator.of(context).pop(emailController.text.trim());
+                      }
+                    },
+                    child: Text(
+                      'Reset',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -308,31 +307,35 @@ class _LoginScreenState extends State<LoginScreen> {
                     ],
                   ),
                   const SizedBox(height: 24),
-                  OutlinedButton.icon(
-                    onPressed:
-                        authProvider.isLoading ? null : _signInWithGoogle,
-                    style: OutlinedButton.styleFrom(
+                  ElevatedButton.icon(
+                    onPressed: _isLoading
+                        ? null
+                        : () => authProvider.signInWithGoogle(context),
+                    style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: BorderSide(
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black87,
+                      minimumSize: const Size(double.infinity,
+                          50), // Full width like Sign In button
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(
+                            12), // Same curve as other fields
                       ),
                     ),
                     icon: Image.asset(
                       'assets/images/google_logo.png',
                       height: 24,
+                      width: 24,
                     ),
                     label: Text(
-                      'Sign In with Google',
+                      'Continue with Google',
                       style: GoogleFonts.poppins(
-                        fontSize: 15,
+                        fontSize: 16,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
@@ -340,8 +343,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         'Don\'t have an account?',
                         style: GoogleFonts.poppins(
                           fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          height: 1.5,
+                          color: Colors.white70,
                         ),
                       ),
                       TextButton(
