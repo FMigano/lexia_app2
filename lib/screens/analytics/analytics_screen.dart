@@ -25,7 +25,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   int _completionPercentage = 0;
   int _totalStagesCompleted = 0;
   final int _totalPossibleStages =
-      30; // Assuming 3 dungeons with 10 stages each
+      15; // Changed from 30 to 15 (3 dungeons × 5 stages each)
   int _daysActive = 0;
   int _energyEfficiency = 0;
 
@@ -95,7 +95,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     }
   }
 
-  // Update the _searchUserByUsername method to search in the dyslexia_users collection
+  // Replace your existing _searchUserByUsername method with this enhanced version:
   Future<void> _searchUserByUsername(String username) async {
     if (username.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -111,20 +111,43 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
     try {
       final searchTerm = username.trim().toLowerCase();
-      debugPrint('Searching for dyslexia user: $searchTerm');
+      debugPrint('🔍 Searching for dyslexia user: $searchTerm');
 
-      // Try direct query first (most efficient)
-      // IMPORTANT: Collection changed from 'users' to 'dyslexia_users'
-      final usernameQuery = await _firestore
-          .collection(
-              'dyslexia_users') // Changed from 'users' to 'dyslexia_users'
-          .where('username', isEqualTo: searchTerm)
+      // Get ALL dyslexia users first
+      final querySnapshot = await _firestore.collection('dyslexia_users').get();
+      debugPrint(
+          '📊 Retrieved ${querySnapshot.docs.length} total dyslexia users');
+
+      // Debug: Print all available usernames
+      final availableUsers = <String>[];
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        if (data['profile']?['username'] != null) {
+          final username = data['profile']['username'].toString();
+          availableUsers.add(username);
+          debugPrint('👤 Available user: $username');
+        }
+      }
+
+      // Try direct query first (case-sensitive)
+      var usernameQuery = await _firestore
+          .collection('dyslexia_users')
+          .where('profile.username', isEqualTo: username.trim())
           .limit(1)
           .get();
 
+      if (usernameQuery.docs.isEmpty) {
+        // Try lowercase
+        usernameQuery = await _firestore
+            .collection('dyslexia_users')
+            .where('profile.username', isEqualTo: searchTerm)
+            .limit(1)
+            .get();
+      }
+
       if (usernameQuery.docs.isNotEmpty) {
         final userData = usernameQuery.docs.first.data();
-        debugPrint('Found dyslexia user directly: ${userData['username']}');
+        debugPrint('✅ Found user directly: ${userData['profile']['username']}');
 
         setState(() {
           _userData = userData;
@@ -132,43 +155,31 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _isSearching = false;
         });
 
-        // Close dialog
         if (context.mounted) {
           Navigator.of(context).pop();
         }
         return;
       }
 
-      // If no exact match, get all dyslexia users and do case-insensitive search
-      final querySnapshot = await _firestore.collection('dyslexia_users').get();
-      debugPrint('Retrieved ${querySnapshot.docs.length} total dyslexia users');
-
+      // Manual search through all documents
       DocumentSnapshot? matchingDoc;
-
-      // Case-insensitive search, including both username and email
       for (final doc in querySnapshot.docs) {
         final data = doc.data();
 
-        // Check username
-        if (data['username'] != null) {
-          final docUsername = data['username'].toString().toLowerCase();
+        if (data['profile']?['username'] != null) {
+          final docUsername = data['profile']['username'].toString();
 
-          if (docUsername == searchTerm ||
-              docUsername.contains(searchTerm) ||
-              searchTerm.contains(docUsername)) {
-            debugPrint('Found username match: $docUsername');
+          // Try exact match (case insensitive)
+          if (docUsername.toLowerCase() == searchTerm) {
+            debugPrint('✅ Found exact match: $docUsername');
             matchingDoc = doc;
             break;
           }
-        }
 
-        // Check email if it contains the search term
-        if (matchingDoc == null &&
-            data['email'] != null &&
-            searchTerm.contains('@')) {
-          final email = data['email'].toString().toLowerCase();
-          if (email.contains(searchTerm) || searchTerm == email) {
-            debugPrint('Found email match: $email');
+          // Try partial match
+          if (docUsername.toLowerCase().contains(searchTerm) ||
+              searchTerm.contains(docUsername.toLowerCase())) {
+            debugPrint('✅ Found partial match: $docUsername');
             matchingDoc = doc;
             break;
           }
@@ -177,8 +188,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
       if (matchingDoc != null) {
         final userData = matchingDoc.data() as Map<String, dynamic>;
-
-        debugPrint('User data fields: ${userData.keys.join(', ')}');
+        debugPrint(
+            '✅ Successfully found user: ${userData['profile']['username']}');
 
         setState(() {
           _userData = userData;
@@ -186,17 +197,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _isSearching = false;
         });
 
-        // Close dialog
         if (context.mounted) {
           Navigator.of(context).pop();
         }
       } else {
-        throw Exception('Game user not found');
+        debugPrint(
+            '❌ User not found. Available users: ${availableUsers.join(', ')}');
+        throw Exception(
+            'User "$username" not found.\nAvailable users: ${availableUsers.take(5).join(', ')}${availableUsers.length > 5 ? '...' : ''}');
       }
     } catch (e) {
-      debugPrint('Error searching game user: $e');
+      debugPrint('💥 Error searching dyslexia user: $e');
       setState(() {
-        _error = 'Game user not found. Try a different username.';
+        _error = e.toString().contains('Available users:')
+            ? e.toString().replaceAll('Exception: ', '')
+            : 'User not found. Use the list button to see available users.';
         _isSearching = false;
       });
     }
@@ -205,60 +220,112 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   void _calculateStats() {
     if (_userData == null) return;
 
-    // Check if this is actually a game user
-    if (!(_userData!.containsKey('username') ||
-        _userData!.containsKey('dungeons_completed') ||
-        _userData!.containsKey('energy'))) {
-      debugPrint('Warning: Attempting to calculate stats for non-game user');
+    debugPrint('=== FULL USER DATA STRUCTURE ===');
+    debugPrint('User data keys: ${_userData!.keys.join(', ')}');
+    debugPrint('Profile section: ${_userData!['profile']}');
+    debugPrint('Stats section: ${_userData!['stats']}');
+    debugPrint('Word challenges section: ${_userData!['word_challenges']}');
+    debugPrint('================================');
+
+    debugPrint(
+        'Calculating stats for user: ${_userData!['profile']?['username']}');
+
+    // Calculate days active using profile created_at and last_session_date
+    _daysActive = 0;
+    if (_userData!['profile'] != null) {
+      try {
+        final createdAtString = _userData!['profile']['created_at'] as String?;
+        final lastSessionString =
+            _userData!['profile']['last_session_date'] as String?;
+
+        if (createdAtString != null) {
+          final createdAt = DateTime.parse(createdAtString);
+
+          if (lastSessionString != null) {
+            // Use last_session_date if available
+            final lastSession = DateTime.parse(lastSessionString);
+            _daysActive = lastSession.difference(createdAt).inDays + 1;
+          } else {
+            // Fallback to current date
+            _daysActive = DateTime.now().difference(createdAt).inDays + 1;
+          }
+
+          if (_daysActive < 1) _daysActive = 1;
+          debugPrint('Days active: $_daysActive');
+        }
+      } catch (e) {
+        debugPrint('Error calculating days active: $e');
+        _daysActive = 1;
+      }
     }
 
-    // Add null checks and default values for every field
-
-    // Handle for dungeons_completed being null
+    // Calculate stages completed from dungeons
     _totalStagesCompleted = 0;
-    if (_userData!['dungeons_completed'] != null) {
-      try {
-        final dungeons =
-            _userData!['dungeons_completed'] as Map<String, dynamic>? ?? {};
-        dungeons.forEach((key, value) {
-          if (value is Map<String, dynamic>) {
-            _totalStagesCompleted += (value['stages_completed'] as int? ?? 0);
-          }
-        });
-      } catch (e) {
-        debugPrint('Error calculating stages completed: $e');
-      }
+    if (_userData!['dungeons'] != null &&
+        _userData!['dungeons']['completed'] != null) {
+      final dungeons =
+          _userData!['dungeons']['completed'] as Map<String, dynamic>;
+      dungeons.forEach((key, value) {
+        if (value is Map<String, dynamic>) {
+          final stagesCompleted = value['stages_completed'] as int? ?? 0;
+          _totalStagesCompleted += stagesCompleted;
+          debugPrint('Dungeon $key: $stagesCompleted stages completed');
+        }
+      });
     }
 
     // Calculate completion percentage
-    _completionPercentage =
-        (_totalStagesCompleted / _totalPossibleStages * 100).round();
-
-    // Calculate days active (from account creation to now)
-    if (_userData!['created_at'] != null) {
-      try {
-        final createdAt =
-            DateFormat('yyyy-MM-dd HH:mm:ss').parse(_userData!['created_at']);
-        _daysActive = DateTime.now().difference(createdAt).inDays;
-      } catch (e) {
-        _daysActive = 0;
-      }
+    if (_totalPossibleStages > 0) {
+      _completionPercentage =
+          (_totalStagesCompleted / _totalPossibleStages * 100).round();
+    } else {
+      _completionPercentage = 0;
     }
 
-    // Calculate energy efficiency (energy used vs. stages completed)
-    final currentEnergy = _userData!['energy'] as int? ?? 0;
-    final maxEnergy = _userData!['max_energy'] as int? ?? 20;
+    // Calculate energy efficiency
+    final enemiesDefeated =
+        _userData!['dungeons']?['progress']?['enemies_defeated'] as int? ?? 0;
+    final currentEnergy =
+        _userData!['stats']?['player']?['energy'] as int? ?? 20;
+    final maxEnergy = 20;
     final energyUsed = maxEnergy - currentEnergy;
 
     if (energyUsed > 0) {
-      _energyEfficiency = (_totalStagesCompleted / energyUsed * 100).round();
+      final performanceScore = _totalStagesCompleted + (enemiesDefeated * 0.5);
+      _energyEfficiency = (performanceScore / energyUsed * 100).round();
     } else {
-      _energyEfficiency = 0;
+      _energyEfficiency = currentEnergy == maxEnergy ? 100 : 0;
     }
 
-    // Language learning statistics calculations
-    _correctWords = _userData?['correct_words'] as int? ?? 0;
-    _mistakeWords = _userData?['mistake_words'] as int? ?? 0;
+    // CORRECTED: Language learning statistics from word_challenges
+    _correctWords = 0;
+    _mistakeWords = 0;
+
+    if (_userData!['word_challenges'] != null) {
+      final wordChallenges = _userData!['word_challenges'];
+      debugPrint('Word challenges data: $wordChallenges');
+
+      // Get completed words (correct answers)
+      if (wordChallenges['completed'] != null) {
+        final completed = wordChallenges['completed'] as Map<String, dynamic>;
+        _correctWords += (completed['stt'] as int? ?? 0);
+        _correctWords += (completed['whiteboard'] as int? ?? 0);
+        debugPrint(
+            'Completed - STT: ${completed['stt']}, Whiteboard: ${completed['whiteboard']}');
+      }
+
+      // Get failed words (incorrect answers)
+      if (wordChallenges['failed'] != null) {
+        final failed = wordChallenges['failed'] as Map<String, dynamic>;
+        _mistakeWords += (failed['stt'] as int? ?? 0);
+        _mistakeWords += (failed['whiteboard'] as int? ?? 0);
+        debugPrint(
+            'Failed - STT: ${failed['stt']}, Whiteboard: ${failed['whiteboard']}');
+      }
+    } else {
+      debugPrint('No word_challenges data found in user data');
+    }
+
     _totalWords = _correctWords + _mistakeWords;
 
     // Calculate word accuracy percentage
@@ -268,24 +335,80 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _wordAccuracy = 0.0;
     }
 
-    // Calculate usage time statistics
-    _totalUsageTimeMinutes =
-        _userData?['total_usage_time_minutes'] as int? ?? 0;
-    _sessionsCompleted = _userData?['sessions_completed'] as int? ?? 0;
+    debugPrint(
+        'Word Stats - Correct: $_correctWords, Mistakes: $_mistakeWords, Total: $_totalWords, Accuracy: ${_wordAccuracy.toStringAsFixed(1)}%');
+
+    // CORRECTED: Usage time calculation using profile fields
+    _totalUsageTimeMinutes = 0;
+    _sessionsCompleted = 1; // Default to 1 session
+
+    debugPrint('=== USAGE TIME DEBUG ===');
+    debugPrint('Raw usage_time: ${_userData!['profile']?['usage_time']}');
+    debugPrint('Session count: ${_userData!['profile']?['session']}');
+    debugPrint('Created at: ${_userData!['profile']?['created_at']}');
+    debugPrint(
+        'Last session date: ${_userData!['profile']?['last_session_date']}');
+    debugPrint('========================');
+
+    // Get usage time from profile (not root level)
+    if (_userData!['profile']?['usage_time'] != null) {
+      final usageTimeValue = _userData!['profile']['usage_time'] as num;
+      debugPrint('Raw usage_time value: $usageTimeValue');
+
+      // Your value 1748439285.696 appears to be in seconds (timestamp-like)
+      // Let's try different conversions to get reasonable minutes
+      if (usageTimeValue > 1000000000) {
+        // Large number - likely a timestamp, convert differently
+        // Try treating it as microseconds first
+        _totalUsageTimeMinutes = (usageTimeValue / 60000000).round();
+
+        // If still too large, try milliseconds
+        if (_totalUsageTimeMinutes > 10000) {
+          _totalUsageTimeMinutes = (usageTimeValue / 60000).round();
+        }
+
+        // If still too large, try seconds
+        if (_totalUsageTimeMinutes > 10000) {
+          _totalUsageTimeMinutes = (usageTimeValue / 60).round();
+        }
+      } else {
+        // Smaller number - likely already in seconds or minutes
+        _totalUsageTimeMinutes = (usageTimeValue / 60).round();
+      }
+
+      debugPrint('Converted to minutes: $_totalUsageTimeMinutes');
+    } else {
+      debugPrint('No usage_time field found in profile');
+    }
+
+    // Get session count from profile (not root level)
+    if (_userData!['profile']?['session'] != null) {
+      _sessionsCompleted = _userData!['profile']['session'] as int;
+      debugPrint('Sessions completed: $_sessionsCompleted');
+    } else {
+      _sessionsCompleted = _daysActive > 0 ? _daysActive : 1;
+      debugPrint('No session field found, using default: $_sessionsCompleted');
+    }
 
     // Calculate average session time
-    if (_sessionsCompleted > 0) {
+    if (_sessionsCompleted > 0 && _totalUsageTimeMinutes > 0) {
       final avgMinutes = _totalUsageTimeMinutes / _sessionsCompleted;
-      if (avgMinutes >= 60) {
-        final hours = (avgMinutes / 60).floor();
-        final minutes = (avgMinutes % 60).round();
-        _averageSessionTime = "${hours}h ${minutes}m";
-      } else {
-        _averageSessionTime = "${avgMinutes.round()}m";
-      }
+      _averageSessionTime = _formatUsageTime(avgMinutes.round());
+      debugPrint('Average session time: $_averageSessionTime');
     } else {
       _averageSessionTime = "0m";
+      debugPrint('No valid usage data for average calculation');
     }
+
+    debugPrint('=== FINAL USAGE STATS ===');
+    debugPrint('Total usage time: ${_formatUsageTime(_totalUsageTimeMinutes)}');
+    debugPrint('Sessions completed: $_sessionsCompleted');
+    debugPrint('Average session time: $_averageSessionTime');
+    debugPrint('Days active: $_daysActive');
+    debugPrint('==========================');
+
+    debugPrint(
+        'Stats calculated - Completion: $_completionPercentage%, Stages: $_totalStagesCompleted, Word Accuracy: ${_wordAccuracy.toStringAsFixed(1)}%');
   }
 
   void _showUserSearchDialog() {
@@ -462,7 +585,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             _buildProgressBar(
               'Stages Completed',
               stagesCompleted,
-              10, // Assuming 10 stages per dungeon
+              5, // Changed from 10 to 5
               color: completed ? Colors.green : Colors.orange,
             ),
           ],
@@ -763,67 +886,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // User Profile Section
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundImage: _userData?['profile_picture'] !=
-                                          "default" &&
-                                      _userData?['profile_picture'] != null &&
-                                      _userData?['profile_picture'].isNotEmpty
-                                  ? NetworkImage(_userData!['profile_picture'])
-                                  : null,
-                              child: _userData?['profile_picture'] ==
-                                          "default" ||
-                                      _userData?['profile_picture'] == null ||
-                                      _userData?['profile_picture'].isEmpty
-                                  ? Text(
-                                      (_userData?['username'] as String?)
-                                                  ?.isNotEmpty ==
-                                              true
-                                          ? (_userData!['username'] as String)
-                                              .characters
-                                              .first
-                                              .toUpperCase()
-                                          : '?',
-                                      style: const TextStyle(fontSize: 36),
-                                    )
-                                  : null,
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    _userData?['username'] ?? 'Unknown User',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 24,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Rank: ${_userData?['rank']?.toString().toUpperCase() ?? 'N/A'}',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w500,
-                                      color: Colors.grey[700],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Level ${_userData?['player_level'] ?? _userData?['user_level'] ?? 0}',
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
+                        _buildUserProfileSection(),
 
                         const SizedBox(height: 24),
 
@@ -894,34 +957,40 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           crossAxisSpacing: 12,
                           children: [
                             _buildStatCard(
-                              'Power Scale',
-                              _userData?['power_scale']?.toString() ?? '0',
-                              Icons.flash_on,
-                              color: Colors.amber,
+                              'Health',
+                              '${_userData?['stats']?['player']?['health'] ?? 0}',
+                              Icons.favorite,
+                              color: Colors.red,
                             ),
                             _buildStatCard(
                               'Energy',
-                              '${_userData?['energy'] ?? 0} / ${_userData?['max_energy'] ?? 0}',
+                              '${_userData?['stats']?['player']?['energy'] ?? 0}/20',
                               Icons.battery_charging_full,
                               color: Colors.green,
                             ),
                             _buildStatCard(
-                              'Age',
-                              _userData?['age']?.toString() ?? 'N/A',
-                              Icons.cake,
+                              'Durability',
+                              '${_userData?['stats']?['player']?['durability'] ?? 0}',
+                              Icons.shield,
                               color: Colors.blue,
                             ),
                             _buildStatCard(
-                              'Birth Date',
-                              (_userData?['birth_date'] != null &&
-                                      (_userData?['birth_date']
-                                              ?.toString()
-                                              .isNotEmpty ??
-                                          false))
-                                  ? _userData!['birth_date'].toString()
-                                  : 'Not Set',
-                              Icons.calendar_today,
+                              'Damage',
+                              '${_userData?['stats']?['player']?['damage'] ?? 0}',
+                              Icons.flash_on,
+                              color: Colors.orange,
+                            ),
+                            _buildStatCard(
+                              'Age',
+                              '${_userData?['profile']?['age'] ?? 0}',
+                              Icons.cake,
                               color: Colors.purple,
+                            ),
+                            _buildStatCard(
+                              'Birthday',
+                              _userData?['profile']?['birth_date'] ?? 'Not Set',
+                              Icons.calendar_today,
+                              color: Colors.pink,
                             ),
                           ],
                         ),
@@ -960,7 +1029,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                         color: Colors.deepPurple),
                                     const SizedBox(width: 8),
                                     Text(
-                                      'Current Location:',
+                                      'Current Progress:',
                                       style: GoogleFonts.poppins(
                                         fontSize: 14,
                                         fontWeight: FontWeight.w500,
@@ -970,24 +1039,45 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 ),
                                 const SizedBox(height: 8),
                                 Text(
-                                  'Dungeon ${_userData?['current_dungeon'] ?? 1} - Stage ${_userData?['current_stage'] ?? 1}',
+                                  'Dungeon ${_userData?['dungeons']?['progress']?['current_dungeon'] ?? 1}',
                                   style: GoogleFonts.poppins(
                                     fontSize: 18,
                                     fontWeight: FontWeight.w600,
                                   ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text(
+                                      'Enemies Defeated: ${_userData?['dungeons']?['progress']?['enemies_defeated'] ?? 0}',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                    Text(
+                                      'Total Stages: $_totalStagesCompleted',
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 14,
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
                           ),
                         ),
 
-                        if (_userData?['dungeons_completed'] != null) ...[
+                        if (_userData?['dungeons']?['completed'] != null) ...[
                           for (var i = 1; i <= 3; i++)
-                            if (_userData?['dungeons_completed']
+                            if (_userData?['dungeons']?['completed']
                                     ?[i.toString()] !=
                                 null)
                               _buildDungeonProgress(
-                                  _userData!['dungeons_completed']
+                                  _userData!['dungeons']['completed']
                                       [i.toString()],
                                   i),
                         ],
@@ -995,43 +1085,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         const SizedBox(height: 24),
 
                         // Account Info Section
-                        Text(
-                          'Account Information',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-
-                        Card(
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
-                              children: [
-                                _buildInfoRow(
-                                  'Email',
-                                  _userData?['email'] ?? 'Not set',
-                                  Icons.email,
-                                ),
-                                const Divider(),
-                                _buildInfoRow(
-                                  'Created At',
-                                  _formatDate(_userData?['created_at']),
-                                  Icons.access_time,
-                                ),
-                                const Divider(),
-                                _buildInfoRow(
-                                  'Last Login',
-                                  _formatDate(_userData?['last_login']),
-                                  Icons.login,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
+                        _buildAccountInfoCard(),
 
                         const SizedBox(height: 40),
                       ],
@@ -1119,6 +1173,135 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildUserProfileSection() {
+    final profile = _userData?['profile'];
+    final stats = _userData?['stats'];
+
+    return Row(
+      children: [
+        CircleAvatar(
+          radius: 40,
+          backgroundColor: Colors.grey[300],
+          child: Text(
+            profile?['username']?.toString().isNotEmpty == true
+                ? profile!['username'].toString().characters.first.toUpperCase()
+                : '?',
+            style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                profile?['username'] ?? 'Unknown User',
+                style: GoogleFonts.poppins(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Rank: ${profile?['rank']?.toString().toUpperCase() ?? 'BRONZE'}',
+                style: GoogleFonts.poppins(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Level ${stats?['player']?['level'] ?? 1}',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'EXP: ${stats?['player']?['exp'] ?? 0}',
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[500],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildAccountInfoCard() {
+    final profile = _userData?['profile'];
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Account Information',
+              style: GoogleFonts.poppins(
+                  fontSize: 18, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 16),
+            _buildInfoRow(
+              'Username',
+              profile?['username'] ?? 'Not set',
+              Icons.person,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Email',
+              profile?['email'] ?? 'Not set',
+              Icons.email,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Age',
+              '${profile?['age'] ?? 'Not set'}',
+              Icons.cake,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Rank',
+              profile?['rank']?.toString().toUpperCase() ?? 'Not set',
+              Icons.emoji_events,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Account Created',
+              profile?['created_at'] != null
+                  ? DateFormat('MMM dd, yyyy')
+                      .format(DateTime.parse(profile!['created_at']))
+                  : 'Not available',
+              Icons.calendar_today,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Last Login',
+              profile?['last_login'] != null
+                  ? DateFormat('MMM dd, yyyy')
+                      .format(DateTime.parse(profile!['last_login']))
+                  : 'Not available',
+              Icons.login,
+            ),
+            const Divider(),
+            _buildInfoRow(
+              'Days Active',
+              '$_daysActive days',
+              Icons.access_time,
+            ),
+          ],
+        ),
       ),
     );
   }

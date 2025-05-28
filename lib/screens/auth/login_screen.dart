@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:lexia_app/services/google_auth_service.dart';
-import 'package:lexia_app/screens/auth/google_registration_screen.dart';
 import 'package:lexia_app/screens/home/home_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart'; // For Provider
@@ -15,8 +13,6 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final GoogleAuthService _googleAuthService = GoogleAuthService();
-  final bool _isLoading = false;
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -65,11 +61,11 @@ class _LoginScreenState extends State<LoginScreen> {
           style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
         ),
         content: SizedBox(
-          width: MediaQuery.of(context).size.width * 0.8, // Limit width
+          width: MediaQuery.of(context).size.width * 0.8,
           child: Form(
             key: formKey,
             child: Column(
-              mainAxisSize: MainAxisSize.min, // Important to prevent overflow
+              mainAxisSize: MainAxisSize.min,
               children: [
                 TextFormField(
                   controller: emailController,
@@ -90,7 +86,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
         actions: [
-          // Use a Column instead of Row for narrow dialogs
           SizedBox(
             width: double.infinity,
             child: Padding(
@@ -193,7 +188,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withAlpha(179), // 0.7 * 255 = 179
+                          .withAlpha(179),
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -264,7 +259,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: authProvider.isLoading ? null : _login,
                     style: ElevatedButton.styleFrom(
@@ -284,56 +279,6 @@ class _LoginScreenState extends State<LoginScreen> {
                               fontWeight: FontWeight.w600,
                             ),
                           ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Text(
-                          'OR',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                            color: Theme.of(context)
-                                .colorScheme
-                                .onSurface
-                                .withAlpha(153), // 0.6 * 255 = 153
-                          ),
-                        ),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  ElevatedButton.icon(
-                    onPressed: _isLoading
-                        ? null
-                        : () => authProvider.signInWithGoogle(context),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: Colors.white,
-                      foregroundColor: Colors.black87,
-                      minimumSize: const Size(double.infinity,
-                          50), // Full width like Sign In button
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(
-                            12), // Same curve as other fields
-                      ),
-                    ),
-                    icon: Image.asset(
-                      'assets/images/google_logo.png',
-                      height: 24,
-                      width: 24,
-                    ),
-                    label: Text(
-                      'Continue with Google',
-                      style: GoogleFonts.poppins(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
                   ),
                   const SizedBox(height: 32),
                   Row(
