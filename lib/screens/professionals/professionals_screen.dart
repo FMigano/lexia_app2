@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lexia_app/screens/chat/chat_screen.dart';
 import 'package:lexia_app/screens/professionals/professional_detail_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:add_2_calendar/add_2_calendar.dart';
 import 'package:intl/intl.dart';
 
 class ProfessionalsScreen extends StatefulWidget {
@@ -17,7 +16,7 @@ class ProfessionalsScreen extends StatefulWidget {
 class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   String _selectedSpecialty = '';
   String _searchQuery = '';
-  String _sortBy = ''; // Add this variable to track sorting option
+  String _sortBy = '';
 
   final List<String> _specialties = [
     'All',
@@ -59,7 +58,6 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
               onChanged: (value) {
                 setState(() {
@@ -73,33 +71,18 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: _specialties.map((specialty) {
-                final isSelected = specialty == 'All'
-                    ? _selectedSpecialty.isEmpty
-                    : specialty == _selectedSpecialty;
-
+                final isSelected = _selectedSpecialty == specialty ||
+                    (specialty == 'All' && _selectedSpecialty.isEmpty);
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: ChoiceChip(
-                    label: Text(
-                      specialty,
-                      style: TextStyle(
-                        color: isSelected ? Colors.white : null,
-                        fontWeight: isSelected ? FontWeight.bold : null,
-                      ),
-                    ),
+                  child: FilterChip(
+                    label: Text(specialty),
                     selected: isSelected,
                     onSelected: (selected) {
                       setState(() {
-                        _selectedSpecialty =
-                            selected && specialty != 'All' ? specialty : '';
+                        _selectedSpecialty = selected ? (specialty == 'All' ? '' : specialty) : '';
                       });
                     },
-                    backgroundColor: specialty == 'All'
-                        ? Colors.grey[200]
-                        : _getSpecialtyColorWithOpacity(specialty, 0.2),
-                    selectedColor: specialty == 'All'
-                        ? Colors.blue
-                        : _getSpecialtyColor(specialty),
                   ),
                 );
               }).toList(),
@@ -110,8 +93,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: _buildQuery(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
@@ -128,16 +110,9 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                     final name = data['name'] as String? ?? '';
                     final specialty = data['specialty'] as String? ?? '';
                     final about = data['about'] as String? ?? '';
-
-                    return name
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        specialty
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase()) ||
-                        about
-                            .toLowerCase()
-                            .contains(_searchQuery.toLowerCase());
+                    return name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                        specialty.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+                        about.toLowerCase().contains(_searchQuery.toLowerCase());
                   }).toList();
                 }
 
@@ -146,22 +121,14 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                   professionals.sort((a, b) {
                     final dataA = a.data() as Map<String, dynamic>;
                     final dataB = b.data() as Map<String, dynamic>;
-
+                    
                     switch (_sortBy) {
-                      case 'name_asc':
-                        final nameA =
-                            (dataA['name'] as String?)?.toLowerCase() ?? '';
-                        final nameB =
-                            (dataB['name'] as String?)?.toLowerCase() ?? '';
-                        return nameA.compareTo(nameB); // A-Z
-
-                      case 'name_desc':
-                        final nameA =
-                            (dataA['name'] as String?)?.toLowerCase() ?? '';
-                        final nameB =
-                            (dataB['name'] as String?)?.toLowerCase() ?? '';
-                        return nameB.compareTo(nameA); // Z-A
-
+                      case 'name':
+                        return (dataA['name'] as String? ?? '').compareTo(dataB['name'] as String? ?? '');
+                      case 'rating':
+                        final ratingA = dataA['rating'] as double? ?? 0.0;
+                        final ratingB = dataB['rating'] as double? ?? 0.0;
+                        return ratingB.compareTo(ratingA); // Descending order
                       default:
                         return 0;
                     }
@@ -169,26 +136,28 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                 }
 
                 if (professionals.isEmpty) {
-                  return const Center(
-                    child: Text('No professionals match your search criteria.'),
+                  return Center(
+                    child: Text(
+                      'No professionals found',
+                      style: GoogleFonts.poppins(),
+                    ),
                   );
                 }
 
                 return ListView.builder(
-                  padding: const EdgeInsets.all(16),
                   itemCount: professionals.length,
                   itemBuilder: (context, index) {
-                    final professional = professionals[index];
-                    final data = professional.data() as Map<String, dynamic>;
+                    final doc = professionals[index];
+                    final data = doc.data() as Map<String, dynamic>;
 
                     return _ProfessionalCard(
-                      id: professional.id,
-                      name: data['name'] ?? 'Unknown',
-                      specialty: data['specialty'] ?? 'Not specified',
-                      photoUrl: data['photoUrl'] ?? '',
-                      rating: (data['rating'] as num?)?.toDouble() ?? 0,
+                      id: doc.id,
+                      name: data['name'] as String? ?? 'Unknown',
+                      specialty: data['specialty'] as String? ?? 'Not specified',
+                      photoUrl: data['photoUrl'] as String? ?? '',
+                      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
                       ratingCount: data['ratingCount'] as int? ?? 0,
-                      about: data['about'] ?? 'No information provided.',
+                      about: data['about'] as String? ?? 'No information provided.',
                     );
                   },
                 );
@@ -234,34 +203,28 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              title: Text(
-                'Name (A-Z)',
-                style: GoogleFonts.poppins(),
-              ),
+              title: const Text('Name'),
               leading: Radio<String>(
-                value: 'name_asc',
+                value: 'name',
                 groupValue: _sortBy,
                 onChanged: (value) {
                   setState(() {
-                    _sortBy = value!;
+                    _sortBy = value ?? '';
                   });
-                  Navigator.pop(context);
+                  Navigator.of(context).pop();
                 },
               ),
             ),
             ListTile(
-              title: Text(
-                'Name (Z-A)',
-                style: GoogleFonts.poppins(),
-              ),
+              title: const Text('Rating'),
               leading: Radio<String>(
-                value: 'name_desc',
+                value: 'rating',
                 groupValue: _sortBy,
                 onChanged: (value) {
                   setState(() {
-                    _sortBy = value!;
+                    _sortBy = value ?? '';
                   });
-                  Navigator.pop(context);
+                  Navigator.of(context).pop();
                 },
               ),
             ),
@@ -283,28 +246,18 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   Color _getSpecialtyColor(String specialty) {
     switch (specialty) {
       case 'Neurologist':
-        return const Color(0xFFE91E63); // Vibrant Pink
+        return const Color(0xFFE91E63);
       case 'Psychologist':
-        return const Color(0xFF9C27B0); // Vibrant Purple
+        return const Color(0xFF9C27B0);
       case 'Teacher':
-        return const Color(0xFF2196F3); // Vibrant Blue
+        return const Color(0xFF2196F3);
       case 'Speech Therapist':
-        return const Color(0xFFFF9800); // Vibrant Orange
+        return const Color(0xFFFF9800);
       case 'Occupational Therapist':
-        return const Color(0xFF4CAF50); // Vibrant Green
+        return const Color(0xFF4CAF50);
       default:
         return Colors.grey;
     }
-  }
-
-  Color _getSpecialtyColorWithOpacity(String specialty, double opacity) {
-    final Color baseColor = _getSpecialtyColor(specialty);
-    return Color.fromRGBO(
-      baseColor.r.toInt(),
-      baseColor.g.toInt(),
-      baseColor.b.toInt(),
-      opacity,
-    );
   }
 }
 
@@ -329,13 +282,9 @@ class _ProfessionalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Add this line to debug
-    debugPrint('Professional specialty: "$specialty"');
-
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: InkWell(
-        // Add this InkWell to make the card tappable
         onTap: () {
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -348,8 +297,7 @@ class _ProfessionalCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: _getSpecialtyColor(specialty)
-                  .withAlpha(128), // 0.5 * 255 = 128
+              color: _getSpecialtyColor(specialty).withAlpha(128),
               width: 2,
             ),
           ),
@@ -362,8 +310,7 @@ class _ProfessionalCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundImage:
-                          photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                      backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
                       child: photoUrl.isEmpty
                           ? Text(
                               name[0].toUpperCase(),
@@ -379,21 +326,28 @@ class _ProfessionalCard extends StatelessWidget {
                           Text(
                             name,
                             style: GoogleFonts.poppins(
+                              fontSize: 18,
                               fontWeight: FontWeight.w600,
-                              fontSize: 16,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
                           Text(
                             specialty,
                             style: GoogleFonts.poppins(
                               fontSize: 14,
-                              fontWeight: FontWeight.w500,
                               color: _getSpecialtyColor(specialty),
-                              letterSpacing: 0.2,
+                              fontWeight: FontWeight.w500,
                             ),
-                            overflow: TextOverflow.ellipsis,
                           ),
+                          if (rating > 0)
+                            Row(
+                              children: [
+                                const Icon(Icons.star, color: Colors.amber, size: 16),
+                                Text(
+                                  '${rating.toStringAsFixed(1)} ($ratingCount)',
+                                  style: GoogleFonts.poppins(fontSize: 12),
+                                ),
+                              ],
+                            ),
                         ],
                       ),
                     ),
@@ -405,6 +359,7 @@ class _ProfessionalCard extends StatelessWidget {
                   child: SingleChildScrollView(
                     child: Text(
                       about,
+                      style: GoogleFonts.poppins(fontSize: 13),
                     ),
                   ),
                 ),
@@ -437,7 +392,6 @@ class _ProfessionalCard extends StatelessWidget {
     );
   }
 
-  // Add this method to show the booking dialog
   Future<void> _showBookingDialog(BuildContext context) async {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) {
@@ -448,7 +402,7 @@ class _ProfessionalCard extends StatelessWidget {
     }
 
     DateTime selectedDate = DateTime.now().add(const Duration(days: 1));
-    TimeOfDay selectedTime = TimeOfDay(hour: 9, minute: 0);
+    TimeOfDay selectedTime = const TimeOfDay(hour: 9, minute: 0);
     String appointmentReason = '';
 
     final result = await showDialog<Map<String, dynamic>>(
@@ -471,23 +425,17 @@ class _ProfessionalCard extends StatelessWidget {
                         context: context,
                         initialDate: selectedDate,
                         firstDate: DateTime.now(),
-                        // Increase the date range to allow more years
-                        lastDate: DateTime.now().add(
-                            const Duration(days: 365 * 5)), // 5 years ahead
-                        // Add these settings to improve year selection
+                        lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
                         initialDatePickerMode: DatePickerMode.day,
                         selectableDayPredicate: (DateTime date) {
-                          // Exclude weekends if desired (optional)
-                          // return date.weekday != DateTime.saturday && date.weekday != DateTime.sunday;
                           return true; // Allow all days
                         },
                         builder: (BuildContext context, Widget? child) {
                           return Theme(
                             data: Theme.of(context).copyWith(
-                              dialogTheme: const DialogTheme(
+                              dialogTheme: const DialogThemeData(
                                 shape: RoundedRectangleBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(16)),
+                                  borderRadius: BorderRadius.all(Radius.circular(16)),
                                 ),
                               ),
                             ),
@@ -572,7 +520,7 @@ class _ProfessionalCard extends StatelessWidget {
       );
 
       try {
-        // Save to Firestore first (most important)
+        // Save to Firestore
         await _saveAppointmentToFirestore(
           context,
           currentUser.uid,
@@ -580,55 +528,28 @@ class _ProfessionalCard extends StatelessWidget {
           result['reason'] as String,
         );
 
-        // Then try adding to calendar (optional)
-        try {
-          final event = Event(
-            title: 'Appointment with $name',
-            description: result['reason'].isEmpty
-                ? 'Consultation with $name ($specialty)'
-                : '${result['reason']}\n\nConsultation with $name ($specialty)',
-            location: 'Online Session',
-            startDate: appointmentDateTime,
-            endDate: appointmentDateTime.add(const Duration(hours: 1)),
-            allDay: false,
-            iosParams: const IOSParams(
-              reminder: Duration(minutes: 30),
-            ),
-            androidParams: const AndroidParams(
-              emailInvites: null,
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Appointment with $name scheduled successfully!\n\nDate: ${DateFormat.yMMMMd().format(appointmentDateTime)}\nTime: ${TimeOfDay.fromDateTime(appointmentDateTime).format(context)}\n\nYou can manually add this to your calendar.'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 5),
             ),
           );
-
-          final bool addedToCalendar = await Add2Calendar.addEvent2Cal(event);
-
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text(addedToCalendar
-                      ? 'Appointment scheduled and added to calendar'
-                      : 'Appointment scheduled successfully')),
-            );
-          }
-        } catch (calendarError) {
-          // Just show appointment scheduled message if calendar fails
-          if (context.mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                  content: Text('Appointment scheduled successfully')),
-            );
-          }
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error scheduling appointment: $e')),
+            SnackBar(
+              content: Text('Error scheduling appointment: $e'),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
     }
   }
 
-  // Store the appointment in Firestore
   Future<void> _saveAppointmentToFirestore(
     BuildContext context,
     String userId,
@@ -636,14 +557,12 @@ class _ProfessionalCard extends StatelessWidget {
     String reason,
   ) async {
     try {
-      // Get user's display name
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(userId)
           .get();
       final userName = userDoc.data()?['name'] ?? 'Client';
 
-      // Create the appointment
       await FirebaseFirestore.instance.collection('appointments').add({
         'professionalId': id,
         'professionalName': name,
@@ -652,11 +571,10 @@ class _ProfessionalCard extends StatelessWidget {
         'appointmentTime': Timestamp.fromDate(appointmentTime),
         'reason': reason,
         'specialty': specialty,
-        'status': 'pending', // pending, confirmed, completed, cancelled
+        'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Send a notification to the professional
       await FirebaseFirestore.instance.collection('notifications').add({
         'recipientId': id,
         'senderId': userId,
@@ -667,24 +585,8 @@ class _ProfessionalCard extends StatelessWidget {
         'isRead': false,
         'createdAt': FieldValue.serverTimestamp(),
       });
-
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Appointment with $name has been scheduled!'),
-            backgroundColor: Colors.green,
-          ),
-        );
-      }
     } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error scheduling appointment: $e'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+      rethrow;
     }
   }
 
@@ -697,7 +599,6 @@ class _ProfessionalCard extends StatelessWidget {
     if (currentUser == null) return;
 
     try {
-      // Check if chat already exists
       final querySnapshot = await FirebaseFirestore.instance
           .collection('chats')
           .where('participants', arrayContains: currentUser.uid)
@@ -706,18 +607,15 @@ class _ProfessionalCard extends StatelessWidget {
       String chatId = '';
 
       for (final doc in querySnapshot.docs) {
-        final participants =
-            List<String>.from(doc['participants'] as List<dynamic>);
+        final participants = List<String>.from(doc['participants'] as List<dynamic>);
         if (participants.contains(professionalId)) {
           chatId = doc.id;
           break;
         }
       }
 
-      // If no chat exists, create one
       if (chatId.isEmpty) {
-        final docRef =
-            await FirebaseFirestore.instance.collection('chats').add({
+        final docRef = await FirebaseFirestore.instance.collection('chats').add({
           'participants': [currentUser.uid, professionalId],
           'createdAt': FieldValue.serverTimestamp(),
           'lastMessage': '',
@@ -756,24 +654,20 @@ class _ProfessionalCard extends StatelessWidget {
   }
 
   Color _getSpecialtyColor(String specialty) {
-    // Normalize the specialty string
     final normalizedSpecialty = specialty.trim();
-
-    debugPrint('Checking color for: "$normalizedSpecialty"');
 
     switch (normalizedSpecialty) {
       case 'Neurologist':
-        return const Color(0xFFE91E63); // Vibrant Pink
+        return const Color(0xFFE91E63);
       case 'Psychologist':
-        return const Color(0xFF9C27B0); // Vibrant Purple
+        return const Color(0xFF9C27B0);
       case 'Teacher':
-        return const Color(0xFF2196F3); // Vibrant Blue
+        return const Color(0xFF2196F3);
       case 'Speech Therapist':
-        return const Color(0xFFFF9800); // Vibrant Orange
+        return const Color(0xFFFF9800);
       case 'Occupational Therapist':
-        return const Color(0xFF4CAF50); // Vibrant Green
+        return const Color(0xFF4CAF50);
       default:
-        debugPrint('No match found, using gray for: "$normalizedSpecialty"');
         return Colors.grey;
     }
   }

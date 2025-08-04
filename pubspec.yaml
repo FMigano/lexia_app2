@@ -42,8 +42,7 @@ dependencies:
   google_fonts: ^6.1.0  # Latest stable version
   path: ^1.8.3  # Add this line
   flutter_image_compress: ^2.1.0  # Update to the latest version
-  # Add these new packages
-  add_2_calendar: ^2.2.5
+  # Remove add_2_calendar and calendar packages
 
 dev_dependencies:
   flutter_test:
