@@ -33,54 +33,42 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Web configuration with values from your project
+  // Web configuration for new project
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBoVgYeTEpEkqrH0OA_UMbl1oZLvTuWMA0',
-    appId:
-        '1:746497205021:web:c30258fe80a8deb922b7f4', // Web app ID might be different
-    messagingSenderId: '746497205021',
-    projectId: 'teamlexia-46228',
-    authDomain: 'teamlexia-46228.firebaseapp.com',
-    storageBucket: 'teamlexia-46228.firebasestorage.app',
-    databaseURL:
-        'https://teamlexia-46228-default-rtdb.asia-southeast1.firebasedatabase.app',
+    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
+    appId: '1:77421098859:web:NEED_WEB_APP_ID', // You'll need to create a web app
+    messagingSenderId: '77421098859',
+    projectId: 'gamedevcapz',
+    authDomain: 'gamedevcapz.firebaseapp.com',
+    storageBucket: 'gamedevcapz.firebasestorage.app',
   );
 
-  // Android configuration with values from your google-services.json
+  // Android configuration with new project values
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBoVgYeTEpEkqrH0OA_UMbl1oZLvTuWMA0',
-    appId: '1:746497205021:android:c30258fe80a8deb922b7f4',
-    messagingSenderId: '746497205021',
-    projectId: 'teamlexia-46228',
-    storageBucket: 'teamlexia-46228.firebasestorage.app',
-    databaseURL:
-        'https://teamlexia-46228-default-rtdb.asia-southeast1.firebasedatabase.app',
+    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
+    appId: '1:77421098859:android:92122dc5011fb1777bfe2e',
+    messagingSenderId: '77421098859',
+    projectId: 'gamedevcapz',
+    storageBucket: 'gamedevcapz.firebasestorage.app',
   );
 
-  // iOS configuration - using similar values but might need adjustment with actual iOS config
+  // iOS configuration - you'll need to add iOS app to Firebase
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey:
-        'AIzaSyD3JBZLHUinaVr3aIsJ6B7K4v9lmUeV5rY', // Using the second API key from the file
-    appId:
-        '1:746497205021:ios:c30258fe80a8deb922b7f4', // This needs actual iOS app ID
-    messagingSenderId: '746497205021',
-    projectId: 'teamlexia-46228',
-    storageBucket: 'teamlexia-46228.firebasestorage.app',
+    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
+    appId: '1:77421098859:ios:NEED_IOS_APP_ID', // You'll need to create an iOS app
+    messagingSenderId: '77421098859',
+    projectId: 'gamedevcapz',
+    storageBucket: 'gamedevcapz.firebasestorage.app',
     iosBundleId: 'com.vaultech.lexia',
-    databaseURL:
-        'https://teamlexia-46228-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 
   // macOS configuration
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyD3JBZLHUinaVr3aIsJ6B7K4v9lmUeV5rY',
-    appId:
-        '1:746497205021:ios:c30258fe80a8deb922b7f4', // This needs actual macOS app ID
-    messagingSenderId: '746497205021',
-    projectId: 'teamlexia-46228',
-    storageBucket: 'teamlexia-46228.firebasestorage.app',
+    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
+    appId: '1:77421098859:ios:NEED_MACOS_APP_ID', // You'll need to create a macOS app
+    messagingSenderId: '77421098859',
+    projectId: 'gamedevcapz',
+    storageBucket: 'gamedevcapz.firebasestorage.app',
     iosBundleId: 'com.vaultech.lexia',
-    databaseURL:
-        'https://teamlexia-46228-default-rtdb.asia-southeast1.firebasedatabase.app',
   );
 }

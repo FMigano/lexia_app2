@@ -1,9 +1,11 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow users to read all documents
+    // DEVELOPMENT MODE - Allow all operations for testing
+    // WARNING: Remove this for production and use specific rules below
     match /{document=**} {
-      allow read;
+      allow read: if true;
+      allow write: if true;
     }
     
     // Basic helper function
@@ -22,7 +24,7 @@ service cloud.firestore {
       allow create: if request.auth != null;
       allow update, delete: if request.auth != null && request.auth.uid == userId;
       
-      // ADD THIS SECTION FOR REVIEWS ACCESS
+      // Reviews access
       match /reviews/{reviewId} {
         // Anyone can read reviews
         allow read: if isAuth();
@@ -47,7 +49,7 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActivityTime', 'commentCount', 'likeCount'])
       );
       
-      // Comments rules - crucial part
+      // Comments rules
       match /comments/{commentId} {
         allow create: if request.auth != null;
         allow update: if request.auth != null && request.auth.uid == resource.data.authorId;
@@ -60,7 +62,7 @@ service cloud.firestore {
       }
     }
     
-    // Add specific rules for chats collection
+    // Chats collection rules
     match /chats/{chatId} {
       allow read: if isAuth() && 
                   resource.data.participants.hasAny([request.auth.uid]);
@@ -70,7 +72,7 @@ service cloud.firestore {
       allow delete: if isAuth() && 
                    resource.data.participants.hasAny([request.auth.uid]);
                    
-      // Allow access to messages subcollection
+      // Messages subcollection
       match /messages/{messageId} {
         allow read: if isAuth() && 
                    get(/databases/$(database)/documents/chats/$(chatId)).data.participants.hasAny([request.auth.uid]);
@@ -79,18 +81,19 @@ service cloud.firestore {
       }
     }
     
-    // Allow creation of reports
+    // Reports collection
     match /reported_posts/{reportId} {
       allow create: if isAuth();
       allow read: if isAuth() && request.auth.uid == resource.data.reportedBy;
     }
     
+    // Children collection
     match /children/{childId} {
       allow read: if isAuth();
       allow create, update, delete: if isAuth();
     }
 
-    // Add specific rules for appointments collection
+    // Appointments collection
     match /appointments/{appointmentId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null && 
@@ -101,7 +104,7 @@ service cloud.firestore {
          request.auth.uid == resource.data.professionalId);
     }
 
-    // Add specific rules for notifications collection
+    // Notifications collection
     match /notifications/{notificationId} {
       allow create: if request.auth != null;
       allow read: if request.auth != null && 
@@ -124,7 +127,7 @@ service firebase.storage {
       allow write: if request.auth != null;
     }
     
-    // NEW RULE: Allow uploads to post_images path
+    // Allow uploads to post_images path
     match /post_images/{imageFile} {
       allow write: if request.auth != null;
     }

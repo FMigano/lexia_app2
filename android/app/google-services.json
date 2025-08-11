@@ -1,68 +1,41 @@
 {
   "project_info": {
-    "project_number": "746497205021",
-    "firebase_url": "https://teamlexia-46228-default-rtdb.asia-southeast1.firebasedatabase.app",
-    "project_id": "teamlexia-46228",
-    "storage_bucket": "teamlexia-46228.firebasestorage.app"
+    "project_number": "77421098859",
+    "project_id": "gamedevcapz",
+    "storage_bucket": "gamedevcapz.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:746497205021:android:1615d063c9d8c03522b7f4",
-        "android_client_info": {
-          "package_name": "com.vaultech.Lexia"
-        }
-      },
-      "oauth_client": [
-        {
-          "client_id": "746497205021-i3dg0f7g7pdrkuadohkftsjhig0pvrdi.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.vaultech.Lexia",
-            "certificate_hash": "5dfd909e31c0aa9a2ad1442ae84b71d6a579899a"
-          }
-        }
-      ],
-      "api_key": [
-        {
-          "current_key": "AIzaSyBoVgYeTEpEkqrH0OA_UMbl1oZLvTuWMA0"
-        },
-        {
-          "current_key": "AIzaSyD3JBZLHUinaVr3aIsJ6B7K4v9lmUeV5rY"
-        }
-      ],
-      "services": {
-        "appinvite_service": {
-          "other_platform_oauth_client": [
-            {
-              "client_id": "746497205021-j5102kn8f9cjeobvnr696ruuifclpokl.apps.googleusercontent.com",
-              "client_type": 3
-            }
-          ]
-        }
-      }
-    },
-    {
-      "client_info": {
-        "mobilesdk_app_id": "1:746497205021:android:c30258fe80a8deb922b7f4",
+        "mobilesdk_app_id": "1:77421098859:android:92122dc5011fb1777bfe2e",
         "android_client_info": {
           "package_name": "com.vaultech.lexia"
         }
       },
-      "oauth_client": [],
-      "api_key": [
+      "oauth_client": [
         {
-          "current_key": "AIzaSyBoVgYeTEpEkqrH0OA_UMbl1oZLvTuWMA0"
+          "client_id": "77421098859-4qkvscaachrha583pdbd3f33l0pfse2t.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.vaultech.lexia",
+            "certificate_hash": "5dfd909e31c0aa9a2ad1442ae84b71d6a579899a"
+          }
         },
         {
-          "current_key": "AIzaSyD3JBZLHUinaVr3aIsJ6B7K4v9lmUeV5rY"
+          "client_id": "77421098859-hc13k4ho7idj55vvnbm6rf1r0fr7a6fm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "746497205021-j5102kn8f9cjeobvnr696ruuifclpokl.apps.googleusercontent.com",
+              "client_id": "77421098859-hc13k4ho7idj55vvnbm6rf1r0fr7a6fm.apps.googleusercontent.com",
               "client_type": 3
             }
           ]
