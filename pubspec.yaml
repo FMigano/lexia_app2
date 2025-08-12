@@ -39,7 +39,7 @@ dependencies:
   uuid: ^4.2.2
   cached_network_image: ^3.3.0
   cupertino_icons: ^1.0.6
-  google_fonts: ^6.1.0  # Latest stable version
+  google_fonts: ^6.2.1  # Add this line only
   path: ^1.8.3  # Add this line
   flutter_image_compress: ^2.1.0  # Update to the latest version
   # Remove add_2_calendar and calendar packages

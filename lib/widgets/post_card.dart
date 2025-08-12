@@ -160,7 +160,7 @@ class _PostCardState extends State<PostCard> {
       debugPrint('Error toggling like: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to process like')),
+          const SnackBar(content: Text('Failed to process like')),
         );
       }
     }
@@ -516,7 +516,7 @@ class _PostCardState extends State<PostCard> {
               SnackBar(
                 content: Text(
                     'Could not report post: ${e.toString().substring(0, min(e.toString().length, 100))}'),
-                duration: Duration(seconds: 5),
+                duration: const Duration(seconds: 5),
               ),
             );
           }

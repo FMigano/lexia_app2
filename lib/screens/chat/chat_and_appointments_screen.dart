@@ -50,7 +50,7 @@ class _ChatAndAppointmentsScreenState extends State<ChatAndAppointmentsScreen>
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => ChatListScreen(
+                    builder: (context) => const ChatListScreen(
                       // Removed undefined key
                       showAppBar: true,
                       initialAction: 'self_notes',

@@ -500,9 +500,9 @@ class _AppointmentsList extends StatelessWidget {
 // Add userName field when booking appointments (add this where appointments are created)
 // Example: Define the required variables before using them
 final currentUser = FirebaseAuth.instance.currentUser;
-final professionalId = 'someProfessionalId'; // Replace with actual value
-final professionalName = 'Some Professional'; // Replace with actual value
-final specialty = 'Specialty'; // Replace with actual value
+const professionalId = 'someProfessionalId'; // Replace with actual value
+const professionalName = 'Some Professional'; // Replace with actual value
+const specialty = 'Specialty'; // Replace with actual value
 final appointmentTime = DateTime.now().add(const Duration(days: 1)); // Replace with actual value
 
 final appointmentData = {

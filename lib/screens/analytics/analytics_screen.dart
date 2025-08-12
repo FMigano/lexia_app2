@@ -287,7 +287,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         _userData!['dungeons']?['progress']?['enemies_defeated'] as int? ?? 0;
     final currentEnergy =
         _userData!['stats']?['player']?['energy'] as int? ?? 20;
-    final maxEnergy = 20;
+    const maxEnergy = 20;
     final energyUsed = maxEnergy - currentEnergy;
 
     if (energyUsed > 0) {

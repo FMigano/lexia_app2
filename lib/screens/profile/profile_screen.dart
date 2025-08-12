@@ -11,8 +11,9 @@ import 'package:lexia_app/providers/auth_provider.dart' as app_provider;
 import 'package:lexia_app/providers/theme_provider.dart';
 import 'package:lexia_app/screens/auth/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
-// Ensure this path is correct
+import '../auth/terms_and_conditions_screen.dart'; // Add this import
 
+// Ensure this path is correct
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
@@ -186,6 +187,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 final userData =
                     snapshot.data?.data() as Map<String, dynamic>? ?? {};
 
+                final name = userData['name']?.toString().trim() ??
+                    userData['fullName']?.toString().trim() ??
+                    currentUser.displayName?.trim() ??
+                    'User';
+
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16),
                   child: Column(
@@ -225,7 +231,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       const SizedBox(height: 16),
                       Text(
-                        currentUser.displayName ?? 'User',
+                        name,
                         style: GoogleFonts.poppins(
                           fontSize: 24,
                           fontWeight: FontWeight.w600,
@@ -379,6 +385,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               .collection('users')
                               .doc(currentUser.uid)
                               .update({'notifications': value});
+                        },
+                      ),
+                      ListTile(
+                        leading: Icon(
+                          Icons.article_outlined,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        title: Text(
+                          'Terms & Conditions',
+                          style: GoogleFonts.poppins(),
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) =>
+                                  const TermsAndConditionsScreen(),
+                            ),
+                          );
                         },
                       ),
                     ],
