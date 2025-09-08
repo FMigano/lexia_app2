@@ -1199,7 +1199,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                profile?['username'] ?? 'Unknown User',
+                profile?['username'] ?? 'Unknown User',  // Should show proper name
                 style: GoogleFonts.poppins(
                   fontSize: 24,
                   fontWeight: FontWeight.w600,

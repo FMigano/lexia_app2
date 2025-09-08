@@ -252,7 +252,7 @@ class _AppointmentsList extends StatelessWidget {
                           child: Text(
                             // If user is professional, show the user's name, otherwise show professional's name
                             isProfessional
-                                ? (data['userName'] ?? 'Client')
+                                ? (data['userName'] ?? 'Client') // Should get proper name
                                 : professionalName,
                             style: GoogleFonts.poppins(
                               fontSize: 18,

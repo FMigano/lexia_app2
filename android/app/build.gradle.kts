@@ -24,7 +24,7 @@ android {
         applicationId = "com.vaultech.lexia"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = 23  // Update to 23 for Firebase Auth compatibility
+        minSdk = flutter.minSdkVersion  // Update to 23 for Firebase Auth compatibility
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

@@ -402,4 +402,20 @@ class PostService {
       return null;
     }
   }
+
+  // Add this method to your PostService class:
+  Future<void> deleteNestedReply(String postId, String commentId, String replyId) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('posts')
+          .doc(postId)
+          .collection('comments')
+          .doc(commentId)
+          .collection('replies')
+          .doc(replyId)
+          .delete();
+    } catch (e) {
+      throw Exception('Failed to delete reply: $e');
+    }
+  }
 }

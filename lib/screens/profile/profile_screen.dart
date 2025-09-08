@@ -149,11 +149,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (currentUser == null) {
       return Center(
         child: Text(
-          'You need to be logged in to view your profile',
-          style: GoogleFonts.poppins(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          'Not signed in',
+          style: GoogleFonts.poppins(),
         ),
       );
     }
@@ -168,244 +165,408 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         actions: [
-          IconButton(icon: const Icon(Icons.logout), onPressed: _signOut),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: () {
+              // TODO: Navigate to edit profile screen
+            },
+          ),
         ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<DocumentSnapshot>(
-              stream: _firestore
-                  .collection('users')
-                  .doc(currentUser.uid)
-                  .snapshots(),
+              stream: _firestore.collection('users').doc(currentUser.uid).snapshots(),
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting &&
-                    !snapshot.hasData) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
 
-                final userData =
-                    snapshot.data?.data() as Map<String, dynamic>? ?? {};
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Error: ${snapshot.error}',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  );
+                }
 
-                final name = userData['name']?.toString().trim() ??
-                    userData['fullName']?.toString().trim() ??
-                    currentUser.displayName?.trim() ??
-                    'User';
+                if (!snapshot.hasData || !snapshot.data!.exists) {
+                  print('❌ User document does not exist for UID: ${currentUser.uid}');
+                  return Center(
+                    child: Text(
+                      'User data not found',
+                      style: GoogleFonts.poppins(),
+                    ),
+                  );
+                }
+
+                final userData = snapshot.data!.data() as Map<String, dynamic>;
+                
+                // ADD THESE DEBUG LINES
+                print('=== PROFILE DEBUG ===');
+                print('User UID: ${currentUser.uid}');
+                print('All user data: $userData');
+                print('Name field: ${userData['name']}');
+                print('Email field: ${userData['email']}');
+                print('Role field: ${userData['role']}');
+                print('====================');
+                
+                // FIX THE NAME READING - this is the key fix
+                final name = userData['name']?.toString().trim() ?? 
+                             userData['fullName']?.toString().trim() ?? 
+                             currentUser.displayName?.trim() ?? 
+                             'User';
+                
+                final email = userData['email'] ?? currentUser.email ?? 'No email';
+                final role = userData['role'] ?? 'Unknown';
 
                 return SingleChildScrollView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(16.0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      Stack(
-                        children: [
-                          CircleAvatar(
-                            radius: 60,
-                            backgroundImage: currentUser.photoURL != null
-                                ? NetworkImage(currentUser.photoURL!)
-                                : null,
-                            child: currentUser.photoURL == null
-                                ? Text(
-                                    (currentUser.displayName ?? '?')[0]
-                                        .toUpperCase(),
-                                    style: const TextStyle(fontSize: 48),
-                                  )
-                                : null,
+                      // Profile Header
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              Theme.of(context).colorScheme.primary,
+                              Theme.of(context).colorScheme.primary.withAlpha(204),
+                            ],
                           ),
-                          Positioned(
-                            right: 0,
-                            bottom: 0,
-                            child: Container(
-                              decoration: BoxDecoration(
-                                color: Theme.of(context).colorScheme.primary,
-                                shape: BoxShape.circle,
-                              ),
-                              child: IconButton(
-                                icon: const Icon(Icons.camera_alt),
-                                color: Theme.of(context).colorScheme.onPrimary,
-                                onPressed: _uploadProfilePicture,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          children: [
+                            Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 50,
+                                  backgroundImage: currentUser.photoURL != null
+                                      ? NetworkImage(currentUser.photoURL!)
+                                      : null,
+                                  backgroundColor: Colors.white,
+                                  child: currentUser.photoURL == null
+                                      ? Text(
+                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 32,
+                                            fontWeight: FontWeight.bold,
+                                            color: Theme.of(context).colorScheme.primary,
+                                          ),
+                                        )
+                                      : null,
+                                ),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).colorScheme.secondary,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.camera_alt, color: Colors.white),
+                                      onPressed: _uploadProfilePicture,
+                                      constraints: const BoxConstraints(
+                                        minWidth: 36,
+                                        minHeight: 36,
+                                      ),
+                                      padding: const EdgeInsets.all(8),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Text(
+                              name, // This should now show the correct name
+                              style: GoogleFonts.poppins(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        name,
-                        style: GoogleFonts.poppins(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.5,
+                            const SizedBox(height: 4),
+                            Text(
+                              email,
+                              style: GoogleFonts.poppins(
+                                fontSize: 14,
+                                color: Colors.white.withAlpha(230),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withAlpha(51),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: Colors.white.withAlpha(128)),
+                              ),
+                              child: Text(
+                                role.toUpperCase(),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.white,
+                                  letterSpacing: 1,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      Text(
-                        currentUser.email ?? '',
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                          height: 1.3,
-                        ),
-                      ),
-                      const SizedBox(height: 8),
-                      Chip(
-                        label: Text(
-                          authProvider.userRole ==
-                                  app_provider.UserRole.professional
-                              ? 'Professional'
-                              : 'Parent',
-                          style: GoogleFonts.poppins(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                            color: Colors.white,
-                          ),
-                        ),
-                        backgroundColor: authProvider.userRole ==
-                                app_provider.UserRole.professional
-                            ? Colors.blue
-                            : Colors.green,
                       ),
                       const SizedBox(height: 24),
-                      const Divider(),
-                      const SizedBox(height: 16),
-                      if (authProvider.userRole ==
-                          app_provider.UserRole.parent) ...[
-                        Text(
-                          'Child Information',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.25,
-                          ),
-                        ),
-                        _EditableField(
-                          label: 'Child Name',
-                          value: userData['childName'] as String? ?? 'Not set',
-                          onEdit: () => _editField(
-                            'childName',
-                            userData['childName'] as String? ?? '',
-                          ),
-                        ),
-                        _EditableField(
-                          label: 'Child Age',
-                          value: userData['childAge'] != null
-                              ? '${userData['childAge']} years'
-                              : 'Not set',
-                          onEdit: () => _editField(
-                            'childAge',
-                            userData['childAge']?.toString() ?? '',
-                          ),
-                        ),
-                        _EditableField(
-                          label: 'Notes',
-                          value:
-                              userData['notes'] as String? ?? 'No notes added',
-                          onEdit: () => _editField(
-                            'notes',
-                            userData['notes'] as String? ?? '',
-                          ),
-                        ),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                      ],
-                      if (authProvider.userRole ==
-                          app_provider.UserRole.professional) ...[
-                        Text(
-                          'Professional Information',
-                          style: GoogleFonts.poppins(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.25,
-                          ),
-                        ),
-                        _EditableField(
-                          label: 'Specialty',
-                          value: userData['specialty'] as String? ?? 'Not set',
-                          onEdit: () => _editField(
-                            'specialty',
-                            userData['specialty'] as String? ?? '',
-                          ),
-                          icon: Icons.arrow_drop_down,
-                        ),
-                        _EditableField(
-                          label: 'Experience',
-                          value: userData['experience'] != null
-                              ? '${userData['experience']} years'
-                              : 'Not set',
-                          onEdit: () => _editField(
-                            'experience',
-                            userData['experience']?.toString() ?? '',
-                          ),
-                        ),
-                        _EditableField(
-                          label: 'About',
-                          value: userData['about'] as String? ??
-                              'No information added',
-                          onEdit: () => _editField(
-                            'about',
-                            userData['about'] as String? ?? '',
-                          ),
-                        ),
-                        const Divider(),
-                        const SizedBox(height: 16),
-                      ],
-                      Text(
-                        'Preferences',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.25,
-                        ),
-                      ),
-                      SwitchListTile(
-                        title: Text(
-                          'Dark Theme',
-                          style: GoogleFonts.poppins(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Enable dark mode',
-                          style: GoogleFonts.poppins(
-                            fontSize: 14,
-                            color: Colors.grey[600],
-                          ),
-                        ),
-                        value: themeProvider.isDarkMode,
-                        onChanged: (value) {
-                          themeProvider.toggleTheme();
-                        },
-                      ),
-                      SwitchListTile(
-                        title: const Text('Notifications'),
-                        subtitle: const Text('Enable push notifications'),
-                        value: userData['notifications'] as bool? ?? true,
-                        onChanged: (value) async {
-                          await _firestore
-                              .collection('users')
-                              .doc(currentUser.uid)
-                              .update({'notifications': value});
-                        },
-                      ),
-                      ListTile(
-                        leading: Icon(
-                          Icons.article_outlined,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
-                        title: Text(
-                          'Terms & Conditions',
-                          style: GoogleFonts.poppins(),
-                        ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) =>
-                                  const TermsAndConditionsScreen(),
+
+                      // Role-specific information section
+                      if (role == 'parent') ...[
+                        // Child Information Section
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline.withAlpha(76),
                             ),
-                          );
-                        },
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Child Information',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _EditableField(
+                                label: 'Child Name',
+                                value: userData['childName'] ?? 'Not set',
+                                onEdit: () => _editField('childName', userData['childName'] ?? ''),
+                              ),
+                              _EditableField(
+                                label: 'Child Age',
+                                value: userData['childAge']?.toString() ?? 'Not set',
+                                onEdit: () => _editField('childAge', userData['childAge']?.toString() ?? ''),
+                              ),
+                              _EditableField(
+                                label: 'Notes',
+                                value: userData['notes'] ?? 'No notes added',
+                                onEdit: () => _editField('notes', userData['notes'] ?? ''),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ] else if (role == 'professional') ...[
+                        // Professional Information Section
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(20),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context).colorScheme.surface,
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: Theme.of(context).colorScheme.outline.withAlpha(76),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Professional Information',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                  color: Theme.of(context).colorScheme.onSurface,
+                                ),
+                              ),
+                              const SizedBox(height: 16),
+                              _EditableField(
+                                label: 'Specialty',
+                                value: userData['specialty'] ?? 'Not set',
+                                onEdit: () => _editField('specialty', userData['specialty'] ?? ''),
+                              ),
+                              _EditableField(
+                                label: 'Experience (years)',
+                                value: userData['experience']?.toString() ?? 'Not set',
+                                onEdit: () => _editField('experience', userData['experience']?.toString() ?? ''),
+                              ),
+                              _EditableField(
+                                label: 'About',
+                                value: userData['about'] ?? 'No information provided',
+                                onEdit: () => _editField('about', userData['about'] ?? ''),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+
+                      const SizedBox(height: 24),
+
+                      // Preferences Section
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline.withAlpha(76),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Preferences',
+                              style: GoogleFonts.poppins(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w600,
+                                color: Theme.of(context).colorScheme.onSurface,
+                              ),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Dark Theme Toggle
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.dark_mode,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Dark Theme',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Enable dark mode',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: themeProvider.isDarkMode,
+                                  onChanged: (value) {
+                                    themeProvider.toggleTheme();
+                                  },
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Notifications Toggle
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.notifications,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Notifications',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                      Text(
+                                        'Enable push notifications',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Switch(
+                                  value: true, // You can add a state for this
+                                  onChanged: (value) {
+                                    // Handle notification preference
+                                  },
+                                ),
+                              ],
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Terms & Conditions
+                            ListTile(
+                              contentPadding: EdgeInsets.zero,
+                              leading: Icon(
+                                Icons.article_outlined,
+                                color: Theme.of(context).colorScheme.primary,
+                              ),
+                              title: Text(
+                                'Terms & Conditions',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              trailing: const Icon(Icons.chevron_right),
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => const TermsAndConditionsScreen(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      // Sign Out Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 50,
+                        child: ElevatedButton.icon(
+                          onPressed: _signOut,
+                          icon: const Icon(Icons.logout),
+                          label: Text(
+                            'Sign Out',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
                       ),
                     ],
                   ),

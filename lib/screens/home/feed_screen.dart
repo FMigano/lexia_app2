@@ -288,9 +288,9 @@ class _FeedScreenState extends State<FeedScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'Question':
-        return const Color(0xFF9C27B0); // Vibrant Purple
-      case 'Discussion':
         return const Color(0xFF2196F3); // Vibrant Blue
+      case 'Discussion':
+        return const Color(0xFF9C27B0); // Vibrant Purple
       case 'Tips':
         return const Color(0xFF4CAF50); // Vibrant Green
       case 'Resource':

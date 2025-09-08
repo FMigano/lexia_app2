@@ -213,8 +213,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       debugPrint('Creating post with category: $_selectedCategory');
       debugPrint('Selected images: ${_selectedImages?.length ?? 0}');
 
-      // Use the selectedImages parameter for web compatibility
-      await _postService.createPost(
+      // Call YOUR createPost method instead of _postService.createPost
+      await createPost(
         content: content,
         category: _selectedCategory,
         selectedImages: _selectedImages,
@@ -251,14 +251,29 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   Future<DocumentReference?> createPost({
     required String content,
     required String category,
-    List<XFile>? selectedImages, // Add this parameter
-    List<File>? imageFiles, // Keep for backward compatibility
+    List<XFile>? selectedImages,
+    List<File>? imageFiles,
     bool isProfessional = false,
   }) async {
     final currentUser = _auth.currentUser;
     if (currentUser == null) return null;
 
     try {
+      // Get user data from Firestore to get the correct name
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      String authorName = 'User'; // Default fallback
+      if (userDoc.exists) {
+        final userData = userDoc.data() as Map<String, dynamic>;
+        authorName = userData['name']?.toString().trim() ??
+                     userData['fullName']?.toString().trim() ??
+                     currentUser.displayName?.trim() ??
+                     'User';
+      }
+
       // Upload images if provided
       List<String> mediaUrls = [];
 
@@ -281,7 +296,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'imageIds': [], // For compatibility
         'category': category,
         'authorId': currentUser.uid,
-        'authorName': currentUser.displayName ?? 'User',
+        'authorName': authorName, // Now uses the correct name from Firestore
         'authorPhotoUrl': currentUser.photoURL ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'likeCount': 0,
@@ -386,19 +401,56 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         ? NetworkImage(_auth.currentUser!.photoURL!)
                         : null,
                     child: _auth.currentUser?.photoURL == null
-                        ? Text(
-                            (_auth.currentUser?.displayName ?? '?')[0]
-                                .toUpperCase(),
+                        ? FutureBuilder<DocumentSnapshot>(
+                            future: FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(_auth.currentUser!.uid)
+                                .get(),
+                            builder: (context, snapshot) {
+                              if (snapshot.hasData && snapshot.data!.exists) {
+                                final userData = snapshot.data!.data() as Map<String, dynamic>;
+                                final name = userData['name']?.toString().trim() ?? 
+                                             userData['fullName']?.toString().trim() ?? 
+                                             _auth.currentUser?.displayName?.trim() ?? 
+                                             'User';
+                                return Text(
+                                  name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                );
+                              }
+                              return const Text('?');
+                            },
                           )
                         : null,
                   ),
                   const SizedBox(width: 12),
-                  Text(
-                    _auth.currentUser?.displayName ?? 'Anonymous',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
+                  FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(_auth.currentUser!.uid)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData && snapshot.data!.exists) {
+                        final userData = snapshot.data!.data() as Map<String, dynamic>;
+                        final name = userData['name']?.toString().trim() ?? 
+                                     userData['fullName']?.toString().trim() ?? 
+                                     _auth.currentUser?.displayName?.trim() ?? 
+                                     'Anonymous';
+                        return Text(
+                          name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        );
+                      }
+                      return const Text(
+                        'Anonymous',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),

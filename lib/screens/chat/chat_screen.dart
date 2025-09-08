@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lexia_app/util/name_utils.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -110,6 +111,24 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     try {
+      // Get the user's actual name from Firestore
+      String senderName = 'User'; // Default fallback
+      try {
+        final userDoc = await _firestore
+            .collection('users')
+            .doc(currentUser.uid)
+            .get();
+
+        if (userDoc.exists) {
+          final userData = userDoc.data() as Map<String, dynamic>;
+          senderName = NameUtils.extractName(userData, user: currentUser);
+        }
+      } catch (e) {
+        debugPrint('Error getting user name: $e');
+        // Use fallback name
+        senderName = currentUser.displayName?.trim() ?? 'User';
+      }
+
       // Add message
       await _firestore
           .collection('chats')
@@ -117,7 +136,7 @@ class _ChatScreenState extends State<ChatScreen> {
           .collection('messages')
           .add({
         'senderId': currentUser.uid,
-        'senderName': currentUser.displayName ?? 'Anonymous',
+        'senderName': senderName, // Use the correct name from Firestore
         'content': message,
         'timestamp': FieldValue.serverTimestamp(),
       });
