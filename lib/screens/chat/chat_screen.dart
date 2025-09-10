@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lexia_app/util/name_utils.dart';
+import 'package:lexia_app/widgets/verification_badge.dart';
 
 class ChatScreen extends StatefulWidget {
   final String chatId;
@@ -183,12 +184,42 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          'Messages',
-          style: GoogleFonts.poppins(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+        title: FutureBuilder<DocumentSnapshot>(
+          future: _firestore.collection('users').doc(widget.otherUserId).get(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Text(
+                widget.otherUserName,
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              );
+            }
+
+            final userData = snapshot.data?.data() as Map<String, dynamic>?;
+            final role = userData?['role'];
+            final verificationStatus = userData?['verificationStatus'];
+
+            return Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  widget.otherUserName,
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                VerificationBadge(
+                  role: role,
+                  verificationStatus: verificationStatus,
+                  size: 18,
+                ),
+              ],
+            );
+          },
         ),
         centerTitle: false,
       ),

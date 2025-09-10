@@ -12,6 +12,8 @@ import 'package:lexia_app/providers/theme_provider.dart';
 import 'package:lexia_app/screens/auth/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../auth/terms_and_conditions_screen.dart'; // Add this import
+import '../auth/professional_verification_screen.dart'; // Import the verification screen
+import 'package:lexia_app/widgets/verification_badge.dart';
 
 // Ensure this path is correct
 class ProfileScreen extends StatefulWidget {
@@ -140,6 +142,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  // Add this to your profile_screen.dart:
+  // Add this method to show verification status
+  Widget _buildVerificationStatus() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(FirebaseAuth.instance.currentUser?.uid)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return const SizedBox.shrink();
+
+        final userData = snapshot.data?.data() as Map<String, dynamic>?;
+        final verificationStatus = userData?['verificationStatus'] as String?;
+
+        if (verificationStatus == null) return const SizedBox.shrink();
+
+        Color statusColor;
+        IconData statusIcon;
+        String statusText;
+
+        switch (verificationStatus) {
+          case 'verified':
+            statusColor = Colors.green;
+            statusIcon = Icons.verified;
+            statusText = 'Verified Professional';
+            break;
+          case 'pending':
+            statusColor = Colors.orange;
+            statusIcon = Icons.pending;
+            statusText = 'Verification Pending';
+            break;
+          case 'rejected':
+            statusColor = Colors.red;
+            statusIcon = Icons.cancel;
+            statusText = 'Verification Rejected';
+            break;
+          default:
+            return const SizedBox.shrink();
+        }
+
+        return Container(
+          margin: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: statusColor.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: statusColor.withOpacity(0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(statusIcon, color: statusColor),
+              const SizedBox(width: 8),
+              Text(
+                statusText,
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: statusColor,
+                ),
+              ),
+              if (verificationStatus == 'rejected') ...[
+                const Spacer(),
+                TextButton(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ProfessionalVerificationScreen(),
+                      ),
+                    );
+                  },
+                  child: Text('Retry', style: GoogleFonts.poppins()),
+                ),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = _auth.currentUser;
@@ -164,14 +245,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.edit),
-            onPressed: () {
-              // TODO: Navigate to edit profile screen
-            },
-          ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -220,7 +293,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 
                 final email = userData['email'] ?? currentUser.email ?? 'No email';
                 final role = userData['role'] ?? 'Unknown';
-
+                final verificationStatus = userData['verificationStatus'];
+                
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -389,10 +463,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ),
                               const SizedBox(height: 16),
-                              _EditableField(
-                                label: 'Specialty',
-                                value: userData['specialty'] ?? 'Not set',
-                                onEdit: () => _editField('specialty', userData['specialty'] ?? ''),
+                              // Locked Profession field (read-only for verified professionals)
+                              _LockedField(
+                                label: 'Profession',
+                                value: userData['profession'] ?? userData['specialty'] ?? 'Not verified',
+                                isVerified: userData['verificationStatus'] == 'verified',
                               ),
                               _EditableField(
                                 label: 'Experience (years)',
@@ -410,6 +485,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ],
 
                       const SizedBox(height: 24),
+
+                      // Verification Status
+                      if (userData['role'] == 'professional') _buildVerificationStatus(),
 
                       // Preferences Section
                       Container(
@@ -577,122 +655,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _editField(String field, String currentValue) async {
-    // Special case for specialty field
-    if (field == 'specialty') {
-      // List of predefined specialties with icons
-      final specialties = [
-        {'name': 'Neurologist', 'icon': Icons.psychology},
-        {'name': 'Psychologist', 'icon': Icons.person_outline},
-        {'name': 'Teacher', 'icon': Icons.school},
-        {'name': 'Speech Therapist', 'icon': Icons.record_voice_over},
-        {'name': 'Occupational Therapist', 'icon': Icons.accessibility_new},
-      ];
-
-      final selectedSpecialty = await showModalBottomSheet<String>(
-        context: context,
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (context) => Padding(
-          padding: const EdgeInsets.symmetric(vertical: 20.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20.0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Choose Specialty',
-                        style: GoogleFonts.poppins(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.close),
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              ),
-              const Divider(),
-              const SizedBox(height: 8),
-              Flexible(
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: specialties.map((specialty) {
-                      final isSelected = specialty['name'] == currentValue;
-                      return ListTile(
-                        leading: Icon(
-                          specialty['icon'] as IconData,
-                          color: isSelected
-                              ? Theme.of(context).colorScheme.primary
-                              : Colors.grey,
-                        ),
-                        title: Text(
-                          specialty['name'] as String,
-                          style: GoogleFonts.poppins(
-                            fontWeight: isSelected
-                                ? FontWeight.w600
-                                : FontWeight.normal,
-                          ),
-                        ),
-                        trailing: isSelected
-                            ? Icon(Icons.check_circle,
-                                color: Theme.of(context).colorScheme.primary)
-                            : null,
-                        onTap: () {
-                          Navigator.of(context)
-                              .pop(specialty['name'] as String);
-                        },
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-            ],
+    // Prevent editing profession for verified professionals
+    if (field == 'profession' || field == 'specialty') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Profession cannot be changed for verified professionals',
+            style: GoogleFonts.poppins(),
           ),
+          backgroundColor: Colors.orange,
         ),
       );
-
-      // Update firestore if a specialty was selected
-      if (selectedSpecialty != null && _auth.currentUser != null) {
-        try {
-          await _firestore
-              .collection('users')
-              .doc(_auth.currentUser!.uid)
-              .update({
-            'specialty': selectedSpecialty,
-          });
-
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Specialty updated to $selectedSpecialty'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Error updating specialty: $e'),
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-          }
-        }
-      }
       return;
     }
 
-    // Regular dialog for other fields (unchanged)
     final controller = TextEditingController(text: currentValue);
 
     final result = await showDialog<String>(
@@ -719,21 +695,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(
-              'Cancel',
-              style: GoogleFonts.poppins(),
-            ),
+            child: Text('Cancel', style: GoogleFonts.poppins()),
           ),
           TextButton(
-            onPressed: () {
-              Navigator.of(context).pop(controller.text);
-            },
-            child: Text(
-              'Save',
-              style: GoogleFonts.poppins(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            onPressed: () => Navigator.of(context).pop(controller.text),
+            child: Text('Save', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -741,10 +707,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (result != null && _auth.currentUser != null) {
       try {
-        final dynamic value = _parseFieldValue(field, result);
-        await _firestore.collection('users').doc(_auth.currentUser!.uid).update(
-          {field: value},
-        );
+        // Make sure you're using _parseFieldValue here:
+        await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+          field: _parseFieldValue(field, result), // This converts String to proper type
+        });
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -754,9 +720,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error updating ${_getFieldLabel(field)}: $e'),
-            ),
+            SnackBar(content: Text('Error updating ${_getFieldLabel(field)}: $e')),
           );
         }
       }
@@ -799,12 +763,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   dynamic _parseFieldValue(String field, String value) {
     switch (field) {
-      case 'childAge':
-        return int.tryParse(value) ?? 0;
       case 'experience':
-        return int.tryParse(value) ?? 0;
+      case 'age':
+      case 'ratingCount':
+        return int.tryParse(value) ?? 0; // Convert string to int safely
+      case 'rating':
+        return double.tryParse(value) ?? 0.0; // Convert string to double safely
       default:
-        return value;
+        return value; // Keep as string for other fields
     }
   }
 }
@@ -813,13 +779,11 @@ class _EditableField extends StatelessWidget {
   final String label;
   final String value;
   final VoidCallback onEdit;
-  final IconData icon;
 
   const _EditableField({
     required this.label,
     required this.value,
     required this.onEdit,
-    this.icon = Icons.edit,
   });
 
   @override
@@ -850,7 +814,115 @@ class _EditableField extends StatelessWidget {
               ],
             ),
           ),
-          IconButton(icon: Icon(icon), onPressed: onEdit),
+          IconButton(
+            icon: const Icon(Icons.edit),
+            onPressed: onEdit,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Add this new widget class at the bottom of your file:
+class _LockedField extends StatelessWidget {
+  final String label;
+  final String value;
+  final bool isVerified;
+
+  const _LockedField({
+    required this.label,
+    required this.value,
+    required this.isVerified,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.poppins(
+                  fontSize: 12,
+                  color: Colors.grey[600],
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              if (isVerified) ...[
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.lock,
+                        size: 12,
+                        color: Colors.green[700],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Verified',
+                        style: GoogleFonts.poppins(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.green[700],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 4),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            decoration: BoxDecoration(
+              color: isVerified 
+                  ? Colors.green.withOpacity(0.05)
+                  : Colors.grey.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: isVerified 
+                    ? Colors.green.withOpacity(0.2)
+                    : Colors.grey.withOpacity(0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    value,
+                    style: GoogleFonts.poppins(
+                      fontSize: 16,
+                      height: 1.4,
+                      color: isVerified 
+                          ? Colors.green[800]
+                          : Theme.of(context).colorScheme.onSurface,
+                      fontWeight: isVerified ? FontWeight.w500 : FontWeight.normal,
+                    ),
+                  ),
+                ),
+                Icon(
+                  isVerified ? Icons.verified : Icons.lock_outline,
+                  color: isVerified ? Colors.green[600] : Colors.grey[500],
+                  size: 20,
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );

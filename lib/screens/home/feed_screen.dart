@@ -80,6 +80,20 @@ class _FeedScreenState extends State<FeedScreen> {
     });
   }
 
+  // Update your _buildPostsQuery method:
+  Stream<QuerySnapshot> _buildPostsQuery() {
+    Query query = _firestore
+        .collection('posts')
+        .orderBy('createdAt', descending: true);
+
+    // Apply category filter - fix the null check
+    if (_selectedCategory != null && _selectedCategory != 'All') {
+      query = query.where('category', isEqualTo: _selectedCategory);
+    }
+
+    return query.snapshots();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -182,10 +196,7 @@ class _FeedScreenState extends State<FeedScreen> {
                       }
 
                       return StreamBuilder<QuerySnapshot>(
-                        stream: _firestore
-                            .collection('posts')
-                            .orderBy('createdAt', descending: true)
-                            .snapshots(),
+                        stream: _buildPostsQuery(),
                         builder: (context, snapshot) {
                           if (snapshot.connectionState ==
                                   ConnectionState.waiting &&

@@ -10,6 +10,7 @@ import 'package:lexia_app/providers/auth_provider.dart' as app_provider;
 import 'package:lexia_app/services/post_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:lexia_app/widgets/verification_badge.dart';
 
 class CreatePostScreen extends StatefulWidget {
   final bool? isProfessional;
@@ -289,6 +290,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       // Create the post document
       final FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+      // When creating posts, include author verification data
+      final userData = await firestore.collection('users').doc(currentUser.uid).get();
+      final userInfo = userData.data() as Map<String, dynamic>?;
+
       return await firestore.collection('posts').add({
         'content': content,
         'title': '', // For compatibility
@@ -302,6 +308,8 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         'likeCount': 0,
         'commentCount': 0,
         'isProfessionalPost': isProfessional,
+        'authorRole': userInfo?['role'],
+        'authorVerificationStatus': userInfo?['verificationStatus'],
       });
     } catch (e) {
       debugPrint('Error creating post: $e');
@@ -423,34 +431,49 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         : null,
                   ),
                   const SizedBox(width: 12),
-                  FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(_auth.currentUser!.uid)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData && snapshot.data!.exists) {
-                        final userData = snapshot.data!.data() as Map<String, dynamic>;
-                        final name = userData['name']?.toString().trim() ?? 
-                                     userData['fullName']?.toString().trim() ?? 
-                                     _auth.currentUser?.displayName?.trim() ?? 
-                                     'Anonymous';
-                        return Text(
-                          name,
-                          style: const TextStyle(
+                  Expanded(
+                    child: FutureBuilder<DocumentSnapshot>(
+                      future: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(_auth.currentUser!.uid)
+                          .get(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          final userData = snapshot.data!.data() as Map<String, dynamic>;
+                          final name = userData['name']?.toString().trim() ?? 
+                                       userData['fullName']?.toString().trim() ?? 
+                                       _auth.currentUser?.displayName?.trim() ?? 
+                                       'Anonymous';
+                          final role = userData['role'];
+                          final verificationStatus = userData['verificationStatus'];
+
+                          return Row(
+                            children: [
+                              Text(
+                                name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              VerificationBadge(
+                                role: role,
+                                verificationStatus: verificationStatus,
+                                size: 18,
+                              ),
+                            ],
+                          );
+                        }
+                        return const Text(
+                          'Anonymous',
+                          style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 16,
                           ),
                         );
-                      }
-                      return const Text(
-                        'Anonymous',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                        ),
-                      );
-                    },
+                      },
+                    ),
                   ),
                 ],
               ),

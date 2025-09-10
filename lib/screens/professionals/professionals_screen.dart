@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lexia_app/screens/chat/chat_screen.dart';
 import 'package:lexia_app/screens/professionals/professional_detail_screen.dart';
+import 'package:lexia_app/widgets/verification_badge.dart'; // Add this import at the top
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 
@@ -66,6 +67,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
               },
             ),
           ),
+          // Replace your SingleChildScrollView section with this colored filter chips:
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -75,14 +77,57 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                     (specialty == 'All' && _selectedSpecialty.isEmpty);
                 return Padding(
                   padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(specialty),
-                    selected: isSelected,
-                    onSelected: (selected) {
-                      setState(() {
-                        _selectedSpecialty = selected ? (specialty == 'All' ? '' : specialty) : '';
-                      });
-                    },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      gradient: isSelected
+                          ? LinearGradient(
+                              colors: [
+                                _getSpecialtyColor(specialty),
+                                _getSpecialtyColor(specialty).withOpacity(0.8),
+                              ],
+                            )
+                          : null,
+                      border: Border.all(
+                        color: _getSpecialtyColor(specialty),
+                        width: 1.5,
+                      ),
+                      color: isSelected ? null : Colors.grey.shade50,
+                    ),
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(20),
+                        onTap: () {
+                          setState(() {
+                            _selectedSpecialty = isSelected ? '' : (specialty == 'All' ? '' : specialty);
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (isSelected)
+                                const Icon(
+                                  Icons.check,
+                                  size: 16,
+                                  color: Colors.white,
+                                ),
+                              if (isSelected) const SizedBox(width: 4),
+                              Text(
+                                specialty,
+                                style: GoogleFonts.poppins(
+                                  fontWeight: FontWeight.w500,
+                                  color: isSelected ? Colors.white : _getSpecialtyColor(specialty),
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 );
               }).toList(),
@@ -91,55 +136,55 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _buildQuery(),
+              stream: _buildQuery(), // Use the filtered query method instead of hardcoded query
               builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
                 }
 
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
                 var professionals = snapshot.data?.docs ?? [];
 
-                // Apply search filter in real-time
+                // Apply search filter if search query exists
                 if (_searchQuery.isNotEmpty) {
                   professionals = professionals.where((doc) {
                     final data = doc.data() as Map<String, dynamic>;
-                    final name = data['name'] as String? ?? '';
-                    final specialty = data['specialty'] as String? ?? '';
-                    final about = data['about'] as String? ?? '';
-                    return name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                        specialty.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                        about.toLowerCase().contains(_searchQuery.toLowerCase());
-                  }).toList();
-                }
-
-                // Apply sorting if selected
-                if (_sortBy.isNotEmpty && professionals.length > 1) {
-                  professionals.sort((a, b) {
-                    final dataA = a.data() as Map<String, dynamic>;
-                    final dataB = b.data() as Map<String, dynamic>;
+                    final name = (data['name'] ?? '').toString().toLowerCase();
+                    final profession = (data['profession'] ?? data['specialty'] ?? '').toString().toLowerCase();
+                    final about = (data['about'] ?? '').toString().toLowerCase();
                     
-                    switch (_sortBy) {
-                      case 'name':
-                        return (dataA['name'] as String? ?? '').compareTo(dataB['name'] as String? ?? '');
-                      case 'rating':
-                        final ratingA = dataA['rating'] as double? ?? 0.0;
-                        final ratingB = dataB['rating'] as double? ?? 0.0;
-                        return ratingB.compareTo(ratingA); // Descending order
-                      default:
-                        return 0;
-                    }
-                  });
+                    return name.contains(_searchQuery.toLowerCase()) ||
+                           profession.contains(_searchQuery.toLowerCase()) ||
+                           about.contains(_searchQuery.toLowerCase());
+                  }).toList();
                 }
 
                 if (professionals.isEmpty) {
                   return Center(
-                    child: Text(
-                      'No professionals found',
-                      style: GoogleFonts.poppins(),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.search_off,
+                          size: 64,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          _searchQuery.isNotEmpty 
+                              ? 'No professionals found matching "$_searchQuery"'
+                              : _selectedSpecialty.isNotEmpty
+                                  ? 'No $_selectedSpecialty professionals found'
+                                  : 'No verified professionals found',
+                          style: GoogleFonts.poppins(
+                            color: Colors.grey.shade600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
                     ),
                   );
                 }
@@ -147,17 +192,18 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                 return ListView.builder(
                   itemCount: professionals.length,
                   itemBuilder: (context, index) {
-                    final doc = professionals[index];
-                    final data = doc.data() as Map<String, dynamic>;
+                    final professional = professionals[index].data() as Map<String, dynamic>;
 
                     return _ProfessionalCard(
-                      id: doc.id,
-                      name: data['name'] as String? ?? 'Unknown',
-                      specialty: data['specialty'] as String? ?? 'Not specified',
-                      photoUrl: data['photoUrl'] as String? ?? '',
-                      rating: (data['rating'] as num?)?.toDouble() ?? 0.0,
-                      ratingCount: data['ratingCount'] as int? ?? 0,
-                      about: data['about'] as String? ?? 'No information provided.',
+                      id: professionals[index].id,
+                      name: professional['name'] ?? 'Unknown',
+                      specialty: professional['profession'] ?? professional['specialty'] ?? 'Not specified',
+                      photoUrl: professional['photoUrl'] ?? '',
+                      rating: (professional['rating'] as num?)?.toDouble() ?? 0.0,
+                      ratingCount: professional['ratingCount'] ?? 0,
+                      about: professional['about'] ?? '',
+                      role: professional['role'],
+                      verificationStatus: professional['verificationStatus'],
                     );
                   },
                 );
@@ -172,10 +218,19 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
   Stream<QuerySnapshot> _buildQuery() {
     Query query = FirebaseFirestore.instance
         .collection('users')
-        .where('role', isEqualTo: 'professional');
+        .where('role', isEqualTo: 'professional')
+        .where('verificationStatus', isEqualTo: 'verified');
 
+    // Only apply specialty filter if it's not empty and not "All"
     if (_selectedSpecialty.isNotEmpty && _selectedSpecialty != 'All') {
-      query = query.where('specialty', isEqualTo: _selectedSpecialty);
+      query = query.where('profession', isEqualTo: _selectedSpecialty);
+    }
+
+    // Apply sorting if specified
+    if (_sortBy == 'name') {
+      query = query.orderBy('name');
+    } else if (_sortBy == 'rating') {
+      query = query.orderBy('rating', descending: true);
     }
 
     return query.snapshots();
@@ -243,8 +298,48 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
     );
   }
 
+  // Replace your incomplete _buildProfessionBadge method with this:
+  Widget _buildProfessionBadge(String profession) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getProfessionColor(profession),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        profession,
+        style: GoogleFonts.poppins(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  // Complete your _getProfessionColor method:
+  Color _getProfessionColor(String profession) {
+    switch (profession.toLowerCase()) {
+      case 'neurologist':
+        return Colors.red.shade500;
+      case 'psychologist':
+        return Colors.purple.shade500;
+      case 'teacher':
+        return Colors.green.shade500;
+      case 'speech therapist':
+        return Colors.blue.shade500;
+      case 'occupational therapist':
+        return Colors.orange.shade500;
+      default:
+        return Colors.grey.shade500;
+    }
+  }
+
+  // Update your _getSpecialtyColor method to include 'All':
   Color _getSpecialtyColor(String specialty) {
     switch (specialty) {
+      case 'All':
+        return const Color(0xFF6C63FF); // Purple for "All"
       case 'Neurologist':
         return const Color(0xFFE91E63);
       case 'Psychologist':
@@ -259,6 +354,20 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
         return Colors.grey;
     }
   }
+
+  dynamic _parseFieldValue(String field, String value) {
+    switch (field) {
+      case 'experience':
+      case 'age':
+      case 'ratingCount':
+        // Make sure to parse strings to integers
+        return int.tryParse(value) ?? 0; // This converts string to int safely
+      case 'rating':
+        return double.tryParse(value) ?? 0.0; // This converts string to double
+      default:
+        return value; // Keep as string for other fields
+    }
+  }
 }
 
 class _ProfessionalCard extends StatelessWidget {
@@ -269,6 +378,8 @@ class _ProfessionalCard extends StatelessWidget {
   final double rating;
   final int ratingCount;
   final String about;
+  final String? role; // Add this
+  final String? verificationStatus; // Add this
 
   const _ProfessionalCard({
     required this.id,
@@ -278,6 +389,8 @@ class _ProfessionalCard extends StatelessWidget {
     required this.rating,
     required this.ratingCount,
     required this.about,
+    this.role, // Add this
+    this.verificationStatus, // Add this
   });
 
   @override
@@ -286,9 +399,12 @@ class _ProfessionalCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       child: InkWell(
         onTap: () {
-          Navigator.of(context).push(
+          Navigator.push(
+            context,
             MaterialPageRoute(
-              builder: (_) => ProfessionalDetailScreen(professionalId: id),
+              builder: (context) => ProfessionalDetailScreen(
+                professionalId: id,
+              ),
             ),
           );
         },
@@ -297,12 +413,12 @@ class _ProfessionalCard extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
             side: BorderSide(
-              color: _getSpecialtyColor(specialty).withAlpha(128),
-              width: 2,
+              color: _getSpecialtyColor(specialty), // Add colored border to card
+              width: 2.0,
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -310,44 +426,65 @@ class _ProfessionalCard extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 30,
-                      backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                      backgroundImage: photoUrl.isNotEmpty
+                          ? NetworkImage(photoUrl)
+                          : null,
                       child: photoUrl.isEmpty
                           ? Text(
-                              name[0].toUpperCase(),
-                              style: const TextStyle(fontSize: 24),
+                              name.isNotEmpty ? name[0].toUpperCase() : '?',
+                              style: GoogleFonts.poppins(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             )
                           : null,
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 16),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            name,
-                            style: GoogleFonts.poppins(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          Text(
-                            specialty,
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              color: _getSpecialtyColor(specialty),
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          if (rating > 0)
-                            Row(
-                              children: [
-                                const Icon(Icons.star, color: Colors.amber, size: 16),
-                                Text(
-                                  '${rating.toStringAsFixed(1)} ($ratingCount)',
-                                  style: GoogleFonts.poppins(fontSize: 12),
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  name,
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                              ],
+                              ),
+                              const SizedBox(width: 8),
+                              // Add verification badge here
+                              VerificationBadge(
+                                role: role,
+                                verificationStatus: verificationStatus,
+                                size: 18,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          // Remove border from badge - keep it simple
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
                             ),
+                            decoration: BoxDecoration(
+                              color: _getSpecialtyColor(specialty),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              specialty,
+                              style: GoogleFonts.poppins(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                     ),

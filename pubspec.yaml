@@ -33,7 +33,7 @@ dependencies:
   firebase_storage: ^12.4.5
   google_sign_in: ^6.1.6
   provider: ^6.1.1
-  image_picker: ^1.0.7
+  image_picker: ^1.0.4
   intl: ^0.19.0
   timeago: ^3.6.0
   uuid: ^4.2.2
@@ -42,6 +42,7 @@ dependencies:
   google_fonts: ^6.2.1  # Add this line only
   path: ^1.8.3  # Add this line
   flutter_image_compress: ^2.1.0  # Update to the latest version
+  file_picker: ^8.0.0+1  # Add this line
   # Remove add_2_calendar and calendar packages
 
 dev_dependencies:

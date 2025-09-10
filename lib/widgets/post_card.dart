@@ -10,6 +10,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:lexia_app/services/post_service.dart';
 import 'dart:convert';
 import 'dart:math';
+import 'package:lexia_app/widgets/verification_badge.dart';
 
 class PostCard extends StatefulWidget {
   final post_model.Post post;
@@ -592,6 +593,57 @@ class _PostCardState extends State<PostCard> {
     );
   }
 
+  Widget _buildVerificationBadge() {
+    return FutureBuilder<DocumentSnapshot>(
+      future: _firestore.collection('users').doc(widget.post.authorId).get(),
+      builder: (context, snapshot) {
+        // Debug logging
+        debugPrint('🔍 Verification Badge Debug for ${widget.post.authorName}:');
+        debugPrint('   Author ID: ${widget.post.authorId}');
+        debugPrint('   Snapshot hasData: ${snapshot.hasData}');
+        debugPrint('   Snapshot exists: ${snapshot.data?.exists}');
+        
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+          debugPrint('   ❌ No user document found');
+          return const SizedBox.shrink();
+        }
+        
+        final userData = snapshot.data?.data() as Map<String, dynamic>?;
+        final authorRole = userData?['role'] as String?;
+        final verificationStatus = userData?['verificationStatus'] as String?;
+        
+        debugPrint('   Role: $authorRole');
+        debugPrint('   Verification Status: $verificationStatus');
+        debugPrint('   Should show badge: ${authorRole == 'professional' && verificationStatus == 'verified'}');
+        
+        // Use your VerificationBadge widget
+        return VerificationBadge(
+          role: authorRole,
+          verificationStatus: verificationStatus,
+          size: 16,
+        );
+      },
+    );
+  }
+
+  Widget _buildCategoryBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: _getCategoryColor(widget.post.category),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        widget.post.category,
+        style: GoogleFonts.poppins(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     // More detailed debugging
@@ -636,285 +688,260 @@ class _PostCardState extends State<PostCard> {
     }
     debugPrint("========================================");
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
+    return StreamBuilder<DocumentSnapshot>(
+      stream: _firestore.collection('posts').doc(widget.post.id).snapshots(),
+      builder: (context, snapshot) {
+        int likeCount = widget.post.likeCount;
+        int commentCount = widget.post.commentCount;
+
+        if (snapshot.hasData && snapshot.data != null) {
+          final postData = snapshot.data!.data() as Map<String, dynamic>?;
+          if (postData != null) {
+            likeCount = postData['likeCount'] ?? widget.post.likeCount;
+            commentCount =
+                postData['commentCount'] ?? widget.post.commentCount;
+          }
+        }
+
+        return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          child: Padding(
             padding: const EdgeInsets.all(12),
-            child: Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
-                      ? CachedNetworkImageProvider(
-                          widget.post.authorPhotoUrl,
-                        ) as ImageProvider
-                      : null,
-                  child: widget.post.authorPhotoUrl.isEmpty
-                      ? Text(widget.post.authorName[0].toUpperCase())
-                      : null,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Wrap(
-                        crossAxisAlignment: WrapCrossAlignment.center,
+                // Author header with verification badge
+                Row(
+                  children: [
+                    CircleAvatar(
+                      radius: 20,
+                      backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
+                          ? NetworkImage(widget.post.authorPhotoUrl)
+                          : null,
+                      child: widget.post.authorPhotoUrl.isEmpty
+                          ? Text(
+                              widget.post.authorName.isNotEmpty
+                                  ? widget.post.authorName[0].toUpperCase()
+                                  : '?',
+                              style: GoogleFonts.poppins(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            )
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            widget.post.authorName,
-                            style: GoogleFonts.poppins(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (widget.post.isProfessionalPost)
-                            Container(
-                              margin: const EdgeInsets.only(
-                                  left: 8, top: 2, bottom: 2),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 2,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.blue,
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Text(
-                                'Pro',
-                                style: GoogleFonts.poppins(
-                                  color: Colors.white,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w600,
+                          // Fixed Row with proper overflow handling
+                          Row(
+                            children: [
+                              // Use Flexible for the name to allow it to shrink
+                              Flexible(
+                                child: Text(
+                                  widget.post.authorName,
+                                  style: GoogleFonts.poppins(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14,
+                                  ),
+                                  overflow: TextOverflow.ellipsis, // Handle long names
+                                  maxLines: 1,
                                 ),
                               ),
-                            ),
-                          Container(
-                            margin: const EdgeInsets.only(
-                                left: 8, top: 2, bottom: 2),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _getCategoryColor(widget.post.category),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              widget.post.category,
-                              style: GoogleFonts.poppins(
-                                color: Colors.white,
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                              ),
+                              const SizedBox(width: 4), // Reduced spacing
+                              _buildVerificationBadge(),
+                              const SizedBox(width: 4), // Reduced spacing
+                              _buildCategoryBadge(),
+                            ],
+                          ),
+                          Text(
+                            timeago.format(widget.post.createdAt),
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: Colors.grey[600],
                             ),
                           ),
                         ],
                       ),
-                      Text(
-                        timeago.format(widget.post.createdAt),
-                        style: TextStyle(color: Colors.grey[600], fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                PopupMenuButton<String>(
-                  onSelected: (value) {
-                    if (value == 'hide') {
-                      _hidePost(context);
-                    } else if (value == 'edit') {
-                      _editPost(context);
-                    } else if (value == 'delete') {
-                      _deletePost(context);
-                    } else if (value == 'report') {
-                      _reportPost(context); // Call the existing report method
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    // Only show edit and delete options if current user is the author
-                    if (_currentUserId == widget.post.authorId) ...[
-                      const PopupMenuItem(
-                        value: 'edit',
-                        child: ListTile(
-                          leading: Icon(Icons.edit),
-                          title: Text('Edit Post'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: ListTile(
-                          leading: Icon(Icons.delete, color: Colors.red),
-                          title: Text('Delete Post',
-                              style: TextStyle(color: Colors.red)),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                      const PopupMenuDivider(),
-                    ],
-                    // Show hide option for all users
-                    const PopupMenuItem(
-                      value: 'hide',
-                      child: ListTile(
-                        leading: Icon(Icons.visibility_off),
-                        title: Text('Hide Post'),
-                        contentPadding: EdgeInsets.zero,
-                      ),
                     ),
-                    // Add report option, but only if the current user is NOT the author
-                    if (_currentUserId != widget.post.authorId)
-                      const PopupMenuItem(
-                        value: 'report',
-                        child: ListTile(
-                          leading: Icon(Icons.flag, color: Colors.orange),
-                          title: Text('Report Post'),
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.post.title,
-                  style: GoogleFonts.poppins(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.25,
-                  ),
-                  maxLines: 2, // Limit to 2 lines
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  widget.post.content,
-                  style: GoogleFonts.poppins(
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                  maxLines: 8, // Show reasonable preview
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-          if (widget.post.mediaUrls.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: SizedBox(
-                height: 200,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: widget.post.mediaUrls.length,
-                  itemBuilder: (context, index) {
-                    final imageUrl = widget.post.mediaUrls[index];
-
-                    return Padding(
-                      padding: const EdgeInsets.only(left: 12.0, right: 4.0),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.0),
-                        child: CachedNetworkImage(
-                          imageUrl: imageUrl,
-                          width: MediaQuery.of(context).size.width * 0.8,
-                          height: 200,
-                          fit: BoxFit.cover,
-                          placeholder: (context, url) => Container(
-                            color: Colors.grey[200],
-                            width: MediaQuery.of(context).size.width * 0.8,
-                            height: 200,
-                            child: const Center(
-                                child: CircularProgressIndicator()),
+                    // Remove the Spacer() and just use a small SizedBox
+                    const SizedBox(width: 8),
+                    PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'hide') {
+                          _hidePost(context);
+                        } else if (value == 'edit') {
+                          _editPost(context);
+                        } else if (value == 'delete') {
+                          _deletePost(context);
+                        } else if (value == 'report') {
+                          _reportPost(context);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        // Only show edit and delete options if current user is the author
+                        if (_currentUserId == widget.post.authorId) ...[
+                          const PopupMenuItem(
+                            value: 'edit',
+                            child: ListTile(
+                              leading: Icon(Icons.edit),
+                              title: Text('Edit Post'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
                           ),
-                          errorWidget: (context, url, error) {
-                            debugPrint(
-                                'Failed to load image: $url, Error: $error');
-                            return Container(
-                              width: MediaQuery.of(context).size.width * 0.8,
-                              height: 200,
-                              color: Colors.grey[200],
-                              child: const Center(
-                                child: Icon(Icons.broken_image, size: 50),
-                              ),
-                            );
-                          },
+                          const PopupMenuItem(
+                            value: 'delete',
+                            child: ListTile(
+                              leading: Icon(Icons.delete, color: Colors.red),
+                              title: Text('Delete Post',
+                                  style: TextStyle(color: Colors.red)),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                          const PopupMenuDivider(),
+                        ],
+                        // Show hide option for all users
+                        const PopupMenuItem(
+                          value: 'hide',
+                          child: ListTile(
+                            leading: Icon(Icons.visibility_off),
+                            title: Text('Hide Post'),
+                            contentPadding: EdgeInsets.zero,
+                          ),
                         ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ),
-          StreamBuilder<DocumentSnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('posts')
-                .doc(widget.post.id)
-                .snapshots(),
-            builder: (context, snapshot) {
-              int likeCount = widget.post.likeCount;
-              int commentCount = widget.post.commentCount;
-
-              if (snapshot.hasData && snapshot.data != null) {
-                final postData = snapshot.data!.data() as Map<String, dynamic>?;
-                if (postData != null) {
-                  likeCount = postData['likeCount'] ?? widget.post.likeCount;
-                  commentCount =
-                      postData['commentCount'] ?? widget.post.commentCount;
-                }
-              }
-
-              return Padding(
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    Text(
-                      '$likeCount ${likeCount == 1 ? 'Like' : 'Likes'}',
-                      style: GoogleFonts.poppins(fontSize: 14),
-                    ),
-                    const SizedBox(width: 16),
-                    Text(
-                      '$commentCount ${commentCount == 1 ? 'Comment' : 'Comments'}',
-                      style: GoogleFonts.poppins(fontSize: 14),
+                        // Add report option, but only if the current user is NOT the author
+                        if (_currentUserId != widget.post.authorId)
+                          const PopupMenuItem(
+                            value: 'report',
+                            child: ListTile(
+                              leading: Icon(Icons.flag, color: Colors.orange),
+                              title: Text('Report Post'),
+                              contentPadding: EdgeInsets.zero,
+                            ),
+                          ),
+                      ],
                     ),
                   ],
                 ),
-              );
-            },
-          ),
-          const Divider(height: 1),
-          Row(
-            children: [
-              Expanded(
-                child: _buildLikeButton(),
-              ),
-              Expanded(
-                child: TextButton.icon(
-                  icon: const Icon(Icons.comment_outlined),
-                  label: const Text('Comment'),
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => CommentsScreen(postId: widget.post.id),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        widget.post.title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.25,
+                        ),
+                        maxLines: 2, // Limit to 2 lines
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    );
-                  },
+                      const SizedBox(height: 8),
+                      Text(
+                        widget.post.content,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          height: 1.5,
+                        ),
+                        maxLines: 8, // Show reasonable preview
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+                if (widget.post.mediaUrls.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8.0),
+                    child: SizedBox(
+                      height: 200,
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.post.mediaUrls.length,
+                        itemBuilder: (context, index) {
+                          final imageUrl = widget.post.mediaUrls[index];
+
+                          return Padding(
+                            padding: const EdgeInsets.only(left: 12.0, right: 4.0),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(8.0),
+                              child: CachedNetworkImage(
+                                imageUrl: imageUrl,
+                                width: MediaQuery.of(context).size.width * 0.8,
+                                height: 200,
+                                fit: BoxFit.cover,
+                                placeholder: (context, url) => Container(
+                                  color: Colors.grey[200],
+                                  width: MediaQuery.of(context).size.width * 0.8,
+                                  height: 200,
+                                  child: const Center(
+                                      child: CircularProgressIndicator()),
+                                ),
+                                errorWidget: (context, url, error) {
+                                  debugPrint(
+                                      'Failed to load image: $url, Error: $error');
+                                  return Container(
+                                    width: MediaQuery.of(context).size.width * 0.8,
+                                    height: 200,
+                                    color: Colors.grey[200],
+                                    child: const Center(
+                                      child: Icon(Icons.broken_image, size: 50),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Text(
+                        '$likeCount ${likeCount == 1 ? 'Like' : 'Likes'}',
+                        style: GoogleFonts.poppins(fontSize: 14),
+                      ),
+                      const SizedBox(width: 16),
+                      Text(
+                        '$commentCount ${commentCount == 1 ? 'Comment' : 'Comments'}',
+                        style: GoogleFonts.poppins(fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                const Divider(height: 1),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildLikeButton(),
+                    ),
+                    Expanded(
+                      child: TextButton.icon(
+                        icon: const Icon(Icons.comment_outlined),
+                        label: const Text('Comment'),
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => CommentsScreen(postId: widget.post.id),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

@@ -5,6 +5,7 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:lexia_app/services/post_service.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:lexia_app/util/name_utils.dart'; // Add this import
+import 'package:lexia_app/widgets/verification_badge.dart';
 
 class CommentsScreen extends StatefulWidget {
   final String postId;
@@ -706,191 +707,157 @@ class _CommentsScreenState extends State<CommentsScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header with author info and actions
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            CircleAvatar(
-              backgroundImage: commentData['authorPhotoUrl'] != null &&
-                      commentData['authorPhotoUrl'] != ''
-                  ? NetworkImage(commentData['authorPhotoUrl'])
-                  : null,
-              radius: isReply ? 14 : 18,
-              child: commentData['authorPhotoUrl'] == null ||
-                      commentData['authorPhotoUrl'] == ''
-                  ? Icon(
-                      Icons.person, 
-                      size: isReply ? 14 : 18, 
-                      color: isDarkMode ? Colors.white70 : Colors.black54
-                    )
-                  : null,
-            ),
-            SizedBox(width: isReply ? 10 : 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    commentData['authorName'] as String? ?? 'Anonymous',
-                    style: GoogleFonts.poppins(
-                      fontWeight: FontWeight.w600,
-                      fontSize: isReply ? 13 : 15,
-                    ),
-                  ),
-                  if (commentData['createdAt'] != null)
-                    Text(
-                      timeago.format((commentData['createdAt'] as Timestamp).toDate()),
-                      style: GoogleFonts.poppins(
-                        fontSize: isReply ? 11 : 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                // Reply button (only for main comments, not replies)
-                if (!isReply)
-                  IconButton(
-                    icon: Icon(
-                      Icons.reply,
-                      color: Theme.of(context).colorScheme.primary.withOpacity(0.7),
-                      size: 20,
-                    ),
-                    onPressed: () {
-                      _setupReply(
-                        commentId,
-                        commentData['authorName'] as String? ?? 'Anonymous'
-                      );
-                    },
-                    tooltip: 'Reply',
-                    constraints: const BoxConstraints(),
-                    padding: const EdgeInsets.all(8),
-                    visualDensity: VisualDensity.compact,
-                  ),
-
-                // Delete button (only for user's own comments)
-                if (isCurrentUser)
-                  IconButton(
-                    icon: Icon(
-                      Icons.delete_outline,
-                      color: Colors.red.shade300,
-                      size: isReply ? 16 : 20,
-                    ),
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: Text(
-                            isReply ? 'Delete Reply' : 'Delete Comment',
-                            style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
-                          ),
-                          content: Text('Are you sure you want to delete this ${isReply ? 'reply' : 'comment'}?'),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.of(context).pop(),
-                              child: const Text('CANCEL'),
-                            ),
-                            FilledButton(
-                              onPressed: () async {
-                                try {
-                                  Navigator.of(context).pop(); // Close dialog first
-                                  
-                                  if (isReply && parentCommentId != null) {
-                                    // Delete reply
-                                    await FirebaseFirestore.instance
-                                        .collection('posts')
-                                        .doc(widget.postId)
-                                        .collection('comments')
-                                        .doc(parentCommentId)
-                                        .collection('replies')
-                                        .doc(commentId)
-                                        .delete();
-                                  } else {
-                                    // Delete main comment and all its replies
-                                    final commentRef = FirebaseFirestore.instance
-                                        .collection('posts')
-                                        .doc(widget.postId)
-                                        .collection('comments')
-                                        .doc(commentId);
-                                    
-                                    // First delete all replies
-                                    final repliesSnapshot = await commentRef.collection('replies').get();
-                                    final batch = FirebaseFirestore.instance.batch();
-                                    
-                                    for (final reply in repliesSnapshot.docs) {
-                                      batch.delete(reply.reference);
-                                    }
-                                    
-                                    // Then delete the comment
-                                    batch.delete(commentRef);
-                                    
-                                    // Update comment count
-                                    batch.update(
-                                      FirebaseFirestore.instance.collection('posts').doc(widget.postId),
-                                      {'commentCount': FieldValue.increment(-1)}
-                                    );
-                                    
-                                    await batch.commit();
-                                  }
-                                  
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          '${isReply ? 'Reply' : 'Comment'} deleted',
-                                          style: GoogleFonts.poppins(),
-                                        ),
-                                        backgroundColor: Colors.green,
-                                      ),
-                                    );
-                                  }
-                                } catch (error) {
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          'Error deleting ${isReply ? 'reply' : 'comment'}: ${error.toString()}',
-                                          style: GoogleFonts.poppins(),
-                                        ),
-                                        backgroundColor: Colors.red,
-                                      ),
-                                    );
-                                  }
-                                }
-                              },
-                              style: FilledButton.styleFrom(
-                                backgroundColor: Colors.red,
-                              ),
-                              child: const Text('DELETE'),
-                            ),
-                          ],
-                        ),
-                      );
-                    },
-                    constraints: const BoxConstraints(),
-                    padding: EdgeInsets.all(isReply ? 0 : 8),
-                    visualDensity: VisualDensity.compact,
-                  ),
-              ],
-            ),
-          ],
-        ),
-        SizedBox(height: isReply ? 8 : 12),
-
-        // Comment content
-        Padding(
-          padding: EdgeInsets.only(
-            left: isReply ? 4 : 48, 
-            right: isReply ? 4 : 8
+        Container(
+          margin: EdgeInsets.only(
+            left: isReply ? 32 : 0,
+            bottom: 8,
           ),
-          child: Text(
-            commentData['content'] as String? ?? '',
-            style: GoogleFonts.poppins(
-              fontSize: isReply ? 13 : 15,
-              height: isReply ? 1.3 : 1.4,
-            ),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isDarkMode ? Colors.grey[800] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Author info with verification badge
+              FutureBuilder<DocumentSnapshot>(
+                future: FirebaseFirestore.instance.collection('users').doc(commentData['authorId']).get(),
+                builder: (context, userSnapshot) {
+                  final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                  final role = userData?['role'];
+                  final verificationStatus = userData?['verificationStatus'];
+                  
+                  return Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 12,
+                        backgroundImage: commentData['authorPhotoUrl']?.isNotEmpty == true
+                            ? NetworkImage(commentData['authorPhotoUrl'])
+                            : null,
+                        child: commentData['authorPhotoUrl']?.isEmpty != false
+                            ? Text(
+                                commentData['authorName']?.isNotEmpty == true
+                                    ? commentData['authorName'][0].toUpperCase()
+                                    : '?',
+                                style: GoogleFonts.poppins(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        commentData['authorName'] ?? 'Anonymous',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          color: isDarkMode ? Colors.white : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      // Add verification badge here
+                      VerificationBadge(
+                        role: role,
+                        verificationStatus: verificationStatus,
+                        size: 14,
+                      ),
+                      const Spacer(),
+                      Text(
+                        timeago.format(
+                          (commentData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                        ),
+                        style: GoogleFonts.poppins(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      if (isCurrentUser) ...[
+                        const SizedBox(width: 8),
+                        InkWell(
+                          onTap: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: Text(
+                                  'Delete Comment',
+                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                ),
+                                content: Text(
+                                  'Are you sure you want to delete this comment?',
+                                  style: GoogleFonts.poppins(),
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, false),
+                                    child: Text(
+                                      'Cancel',
+                                      style: GoogleFonts.poppins(),
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context, true),
+                                    child: Text(
+                                      'Delete',
+                                      style: GoogleFonts.poppins(color: Colors.red),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            if (confirmed == true) {
+                              if (isReply) {
+                                await _postService.deleteNestedReply(
+                                  widget.postId,
+                                  parentCommentId!,
+                                  commentId,
+                                );
+                              } else {
+                                await _postService.deleteComment(widget.postId, commentId);
+                              }
+                            }
+                          },
+                          child: Icon(
+                            Icons.delete_outline,
+                            size: 16,
+                            color: Colors.red[400],
+                          ),
+                        ),
+                      ],
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 8),
+              Text(
+                commentData['content'] ?? '',
+                style: GoogleFonts.poppins(
+                  fontSize: 14,
+                  color: isDarkMode ? Colors.white : Colors.black87,
+                  height: 1.4,
+                ),
+              ),
+              if (!isReply) ...[
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => _setupReply(
+                    commentId,
+                    commentData['authorName'] ?? 'User',
+                  ),
+                  child: Text(
+                    'Reply',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Theme.of(context).primaryColor,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ],

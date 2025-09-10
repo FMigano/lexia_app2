@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'terms_and_conditions_screen.dart';
 import '../home/home_screen.dart';
+import 'professional_verification_screen.dart';
 
 enum UserRole { parent, professional }
 
@@ -109,9 +110,19 @@ class _RegisterScreenState extends State<RegisterScreen> {
         });
 
         if (mounted) {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const HomeScreen()),
-          );
+          if (_selectedRole == UserRole.professional) {
+            // Navigate to verification screen
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => const ProfessionalVerificationScreen(),
+              ),
+            );
+          } else {
+            // Navigate to home for individuals  
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(builder: (_) => const HomeScreen()),
+            );
+          }
         }
       } on FirebaseAuthException catch (e) {
         String message = 'Registration failed. Please try again.';
@@ -151,6 +162,118 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
     }
+  }
+
+  Widget _buildProfessionalVerificationPrompt() {
+    if (_selectedRole != UserRole.professional) return const SizedBox.shrink();
+    
+    return Container(
+      margin: const EdgeInsets.only(top: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.verified_user, color: Colors.blue.shade700),
+              const SizedBox(width: 8),
+              Text(
+                'Professional Verification Required',
+                style: GoogleFonts.poppins(
+                  fontWeight: FontWeight.w600,
+                  color: Colors.blue.shade700,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'After registration, you\'ll need to verify your professional credentials to access all features and gain user trust.',
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.blue.shade700,
+            ),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: () {
+                // Show preview of verification process
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    title: Text(
+                      'Verification Process',
+                      style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                    ),
+                    content: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Professional verification includes:',
+                          style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 8),
+                        _buildVerificationStep('Work email verification'),
+                        _buildVerificationStep('Professional credentials'),
+                        _buildVerificationStep('Institution affiliation'),
+                        _buildVerificationStep('Document upload (if needed)'),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Institutional emails (.edu, .gov, major hospitals) are verified automatically!',
+                          style: GoogleFonts.poppins(
+                            fontSize: 12,
+                            color: Colors.green.shade700,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        child: Text('Got it', style: GoogleFonts.poppins()),
+                      ),
+                    ],
+                  ),
+                );
+              },
+              icon: const Icon(Icons.info_outline),
+              label: Text(
+                'Learn More',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVerificationStep(String text) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: [
+          Icon(Icons.check_circle_outline, size: 16, color: Colors.green.shade600),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -452,6 +575,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                   ],
                 ),
+                _buildProfessionalVerificationPrompt(),
               ],
             ),
           ),

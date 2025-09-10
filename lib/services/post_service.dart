@@ -383,6 +383,14 @@ class PostService {
       debugPrint('Creating post with ${mediaUrls.length} media URLs');
 
       // Create the post document
+      // When creating a post, include author verification status
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      final userData = userDoc.data();
+
       return await _firestore.collection('posts').add({
         'content': content,
         'title': '', // Keep empty string for compatibility
@@ -392,6 +400,8 @@ class PostService {
         'authorId': currentUser.uid,
         'authorName': currentUser.displayName ?? 'User',
         'authorPhotoUrl': currentUser.photoURL ?? '',
+        'authorRole': userData?['role'], // Add role
+        'authorVerificationStatus': userData?['verificationStatus'], // Add verification status
         'createdAt': FieldValue.serverTimestamp(),
         'likeCount': 0,
         'commentCount': 0,
