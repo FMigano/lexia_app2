@@ -226,13 +226,6 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
       query = query.where('profession', isEqualTo: _selectedSpecialty);
     }
 
-    // Apply sorting if specified
-    if (_sortBy == 'name') {
-      query = query.orderBy('name');
-    } else if (_sortBy == 'rating') {
-      query = query.orderBy('rating', descending: true);
-    }
-
     return query.snapshots();
   }
 

@@ -357,7 +357,7 @@ class _ProfessionalVerificationScreenState extends State<ProfessionalVerificatio
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Document selected: ${_uploadedFileName}'),
+              content: Text('Document selected: $_uploadedFileName'),
               backgroundColor: Colors.green,
             ),
           );
@@ -538,7 +538,7 @@ class _ProfessionalVerificationScreenState extends State<ProfessionalVerificatio
 
               // Profession Dropdown
               DropdownButtonFormField<String>(
-                value: _selectedProfession,
+                initialValue: _selectedProfession,
                 decoration: const InputDecoration(
                   labelText: 'Profession/Title *',
                   prefixIcon: Icon(Icons.work),

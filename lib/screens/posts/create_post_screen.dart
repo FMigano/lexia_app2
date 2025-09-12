@@ -293,7 +293,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       // When creating posts, include author verification data
       final userData = await firestore.collection('users').doc(currentUser.uid).get();
-      final userInfo = userData.data() as Map<String, dynamic>?;
+      final userInfo = userData.data();
 
       return await firestore.collection('posts').add({
         'content': content,

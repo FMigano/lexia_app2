@@ -13,7 +13,6 @@ import 'package:lexia_app/screens/auth/login_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../auth/terms_and_conditions_screen.dart'; // Add this import
 import '../auth/professional_verification_screen.dart'; // Import the verification screen
-import 'package:lexia_app/widgets/verification_badge.dart';
 
 // Ensure this path is correct
 class ProfileScreen extends StatefulWidget {
