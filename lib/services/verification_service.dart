@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
-import 'dart:typed_data';
+import 'dart:io'; // Add this for File class
+import 'package:flutter/foundation.dart'; // Add this for kIsWeb
 
 class VerificationService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -133,23 +134,44 @@ class VerificationService {
       final fileName = '${userId}_${timestamp}_${file.name}';
       final ref = _storage.ref().child('verification_documents/$fileName');
 
-      // Upload file
-      Uint8List? fileBytes = file.bytes;
-      if (fileBytes == null) {
-        throw Exception('Could not read file data');
-      }
+      // PLATFORM-SPECIFIC FILE UPLOAD
+      if (kIsWeb) {
+        // Web: Use bytes
+        Uint8List? fileBytes = file.bytes;
+        if (fileBytes == null) {
+          throw Exception('Could not read file data on web');
+        }
 
-      await ref.putData(
-        fileBytes,
-        SettableMetadata(
-          contentType: _getContentType(file.extension ?? ''),
-          customMetadata: {
-            'userId': userId,
-            'originalName': file.name,
-            'uploadedAt': DateTime.now().toIso8601String(),
-          },
-        ),
-      );
+        await ref.putData(
+          fileBytes,
+          SettableMetadata(
+            contentType: _getContentType(file.extension ?? ''),
+            customMetadata: {
+              'userId': userId,
+              'originalName': file.name,
+              'uploadedAt': DateTime.now().toIso8601String(),
+            },
+          ),
+        );
+      } else {
+        // Mobile (Android/iOS): Use file path
+        if (file.path == null) {
+          throw Exception('Could not access file path on mobile');
+        }
+
+        final fileToUpload = File(file.path!);
+        await ref.putFile(
+          fileToUpload,
+          SettableMetadata(
+            contentType: _getContentType(file.extension ?? ''),
+            customMetadata: {
+              'userId': userId,
+              'originalName': file.name,
+              'uploadedAt': DateTime.now().toIso8601String(),
+            },
+          ),
+        );
+      }
 
       // Get download URL
       final downloadUrl = await ref.getDownloadURL();

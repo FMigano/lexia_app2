@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:lexia_app/services/verification_service.dart';
-import 'dart:io';
 import 'package:file_picker/file_picker.dart'; // Add this import
 
 class RegisterScreen extends StatefulWidget {

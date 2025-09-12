@@ -136,7 +136,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
           const SizedBox(height: 16),
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
-              stream: _buildQuery(), // Use the filtered query method instead of hardcoded query
+              stream: _buildQuery(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return Center(child: Text('Error: ${snapshot.error}'));
@@ -161,6 +161,22 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                            about.contains(_searchQuery.toLowerCase());
                   }).toList();
                 }
+
+                // ADD THIS SORTING LOGIC - THIS WAS MISSING:
+                if (_sortBy == 'a_to_z') {
+                  professionals.sort((a, b) {
+                    final nameA = (a.data() as Map<String, dynamic>)['name'] ?? '';
+                    final nameB = (b.data() as Map<String, dynamic>)['name'] ?? '';
+                    return nameA.toString().toLowerCase().compareTo(nameB.toString().toLowerCase());
+                  });
+                } else if (_sortBy == 'z_to_a') {
+                  professionals.sort((a, b) {
+                    final nameA = (a.data() as Map<String, dynamic>)['name'] ?? '';
+                    final nameB = (b.data() as Map<String, dynamic>)['name'] ?? '';
+                    return nameB.toString().toLowerCase().compareTo(nameA.toString().toLowerCase());
+                  });
+                }
+                // If _sortBy is empty or 'default', keep original Firestore order
 
                 if (professionals.isEmpty) {
                   return Center(
@@ -251,9 +267,9 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
             ),
             const SizedBox(height: 8),
             ListTile(
-              title: const Text('Name'),
+              title: const Text('A to Z'),
               leading: Radio<String>(
-                value: 'name',
+                value: 'a_to_z',
                 groupValue: _sortBy,
                 onChanged: (value) {
                   setState(() {
@@ -264,9 +280,22 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
               ),
             ),
             ListTile(
-              title: const Text('Rating'),
+              title: const Text('Z to A'),
               leading: Radio<String>(
-                value: 'rating',
+                value: 'z_to_a',
+                groupValue: _sortBy,
+                onChanged: (value) {
+                  setState(() {
+                    _sortBy = value ?? '';
+                  });
+                  Navigator.of(context).pop();
+                },
+              ),
+            ),
+            ListTile(
+              title: const Text('Default'),
+              leading: Radio<String>(
+                value: '',
                 groupValue: _sortBy,
                 onChanged: (value) {
                   setState(() {
