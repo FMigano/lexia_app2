@@ -3,8 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'terms_and_conditions_screen.dart';
-import '../home/home_screen.dart';
 import 'professional_verification_screen.dart';
+import 'login_screen.dart'; // <-- Add this import
 
 enum UserRole { parent, professional }
 
@@ -107,21 +107,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
           'experience': _selectedRole == UserRole.professional ? '' : null,
           'location': '',
           'phone': '',
+          // Add verification status for professionals
+          'verificationStatus': _selectedRole == UserRole.professional ? 'pending' : null,
         });
 
         if (mounted) {
           if (_selectedRole == UserRole.professional) {
-            // Navigate to verification screen
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (_) => const ProfessionalVerificationScreen(),
-              ),
-            );
+            // Show verification options dialog for professionals
+            _showVerificationOptionsDialog();
           } else {
-            // Navigate to home for individuals  
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(builder: (_) => const HomeScreen()),
-            );
+            // For parents, show success and go to login
+            _showRegistrationSuccess();
           }
         }
       } on FirebaseAuthException catch (e) {
@@ -162,6 +158,150 @@ class _RegisterScreenState extends State<RegisterScreen> {
         }
       }
     }
+  }
+
+  void _showVerificationOptionsDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // Prevent dismissing by tapping outside
+      builder: (context) => AlertDialog(
+        title: Text(
+          'Professional Verification',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+            fontSize: 20,
+          ),
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose how you\'d like to proceed:',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 16),
+            
+            // Verify Now Option
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.blue.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.blue.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.verified_user, color: Colors.blue.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Verify Now (Recommended)',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.blue.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '• Gain user trust\n• Access all features\n• Higher visibility',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.blue.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            
+            const SizedBox(height: 12),
+            
+            // Skip Verification Option
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.orange.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.schedule, color: Colors.orange.shade700, size: 20),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Skip for Now',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          color: Colors.orange.shade700,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '• Limited features\n• Can verify later in profile\n• Lower trust score',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.orange.shade600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          // Skip Verification Button
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              _skipVerificationAndGoToLogin();
+            },
+            child: Text(
+              'Skip Verification',
+              style: GoogleFonts.poppins(
+                color: Colors.orange.shade700,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+          
+          // Verify Now Button
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => const ProfessionalVerificationScreen(),
+                ),
+              );
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue.shade700,
+              foregroundColor: Colors.white,
+            ),
+            child: Text(
+              'Verify Now',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildProfessionalVerificationPrompt() {
@@ -274,6 +414,67 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ],
       ),
     );
+  }
+
+  void _skipVerificationAndGoToLogin() async {
+    // Update user's verification status to 'skipped'
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .update({
+        'verificationStatus': 'skipped',
+        'verificationSkippedAt': FieldValue.serverTimestamp(),
+      });
+    }
+    
+    // Sign out the user
+    await FirebaseAuth.instance.signOut();
+    
+    // Show success message and navigate to login
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Account created successfully! You can verify your credentials anytime in your profile.',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 4),
+        ),
+      );
+      
+      // FIXED: Use MaterialPageRoute instead of named route
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
+  void _showRegistrationSuccess() async {
+    // Sign out the user
+    await FirebaseAuth.instance.signOut();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Account created successfully! Please log in to continue.',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.green,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+      
+      // FIXED: Use MaterialPageRoute instead of named route
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
   }
 
   @override

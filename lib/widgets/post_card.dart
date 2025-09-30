@@ -11,6 +11,7 @@ import 'package:lexia_app/services/post_service.dart';
 import 'dart:convert';
 import 'dart:math';
 import 'package:lexia_app/widgets/verification_badge.dart';
+import 'package:lexia_app/util/name_utils.dart'; // Add this import
 
 class PostCard extends StatefulWidget {
   final post_model.Post post;
@@ -698,8 +699,7 @@ class _PostCardState extends State<PostCard> {
           final postData = snapshot.data!.data() as Map<String, dynamic>?;
           if (postData != null) {
             likeCount = postData['likeCount'] ?? widget.post.likeCount;
-            commentCount =
-                postData['commentCount'] ?? widget.post.commentCount;
+            commentCount = postData['commentCount'] ?? widget.post.commentCount;
           }
         }
 
@@ -711,121 +711,142 @@ class _PostCardState extends State<PostCard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Author header with verification badge
-                Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 20,
-                      backgroundImage: widget.post.authorPhotoUrl.isNotEmpty
-                          ? NetworkImage(widget.post.authorPhotoUrl)
-                          : null,
-                      child: widget.post.authorPhotoUrl.isEmpty
-                          ? Text(
-                              widget.post.authorName.isNotEmpty
-                                  ? widget.post.authorName[0].toUpperCase()
-                                  : '?',
-                              style: GoogleFonts.poppins(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Fixed Row with proper overflow handling
-                          Row(
-                            children: [
-                              // Use Flexible for the name to allow it to shrink
-                              Flexible(
-                                child: Text(
-                                  widget.post.authorName,
+                // Author header with REAL-TIME user data
+                StreamBuilder<DocumentSnapshot>(
+                  stream: _firestore.collection('users').doc(widget.post.authorId).snapshots(),
+                  builder: (context, userSnapshot) {
+                    // Start with post data as fallback
+                    String currentPhotoUrl = widget.post.authorPhotoUrl;
+                    String currentName = widget.post.authorName;
+                    
+                    // Update with REAL-TIME data if available
+                    if (userSnapshot.hasData && userSnapshot.data!.exists) {
+                      final userData = userSnapshot.data!.data() as Map<String, dynamic>?;
+                      if (userData != null) {
+                        // Use the most current profile picture
+                        currentPhotoUrl = userData['photoUrl'] ?? 
+                                         userData['profile_image_url'] ?? 
+                                         widget.post.authorPhotoUrl;
+                        // Use the most current name
+                        currentName = NameUtils.extractName(userData) ?? widget.post.authorName;
+                      }
+                    }
+                    
+                    return Row(
+                      children: [
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundImage: currentPhotoUrl.isNotEmpty
+                              ? NetworkImage(currentPhotoUrl)
+                              : null,
+                          child: currentPhotoUrl.isEmpty
+                              ? Text(
+                                  currentName.isNotEmpty
+                                      ? currentName[0].toUpperCase()
+                                      : '?',
                                   style: GoogleFonts.poppins(
-                                    fontWeight: FontWeight.w600,
-                                    fontSize: 14,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
                                   ),
-                                  overflow: TextOverflow.ellipsis, // Handle long names
-                                  maxLines: 1,
+                                )
+                              : null,
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Flexible(
+                                    child: Text(
+                                      currentName, // Use real-time name
+                                      style: GoogleFonts.poppins(
+                                        fontWeight: FontWeight.w600,
+                                        fontSize: 14,
+                                      ),
+                                      overflow: TextOverflow.ellipsis,
+                                      maxLines: 1,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  _buildVerificationBadge(),
+                                  const SizedBox(width: 4),
+                                  _buildCategoryBadge(),
+                                ],
+                              ),
+                              Text(
+                                timeago.format(widget.post.createdAt),
+                                style: GoogleFonts.poppins(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
                                 ),
                               ),
-                              const SizedBox(width: 4), // Reduced spacing
-                              _buildVerificationBadge(),
-                              const SizedBox(width: 4), // Reduced spacing
-                              _buildCategoryBadge(),
                             ],
                           ),
-                          Text(
-                            timeago.format(widget.post.createdAt),
-                            style: GoogleFonts.poppins(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Remove the Spacer() and just use a small SizedBox
-                    const SizedBox(width: 8),
-                    PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'hide') {
-                          _hidePost(context);
-                        } else if (value == 'edit') {
-                          _editPost(context);
-                        } else if (value == 'delete') {
-                          _deletePost(context);
-                        } else if (value == 'report') {
-                          _reportPost(context);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        // Only show edit and delete options if current user is the author
-                        if (_currentUserId == widget.post.authorId) ...[
-                          const PopupMenuItem(
-                            value: 'edit',
-                            child: ListTile(
-                              leading: Icon(Icons.edit),
-                              title: Text('Edit Post'),
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                          const PopupMenuItem(
-                            value: 'delete',
-                            child: ListTile(
-                              leading: Icon(Icons.delete, color: Colors.red),
-                              title: Text('Delete Post',
-                                  style: TextStyle(color: Colors.red)),
-                              contentPadding: EdgeInsets.zero,
-                            ),
-                          ),
-                          const PopupMenuDivider(),
-                        ],
-                        // Show hide option for all users
-                        const PopupMenuItem(
-                          value: 'hide',
-                          child: ListTile(
-                            leading: Icon(Icons.visibility_off),
-                            title: Text('Hide Post'),
-                            contentPadding: EdgeInsets.zero,
-                          ),
                         ),
-                        // Add report option, but only if the current user is NOT the author
-                        if (_currentUserId != widget.post.authorId)
-                          const PopupMenuItem(
-                            value: 'report',
-                            child: ListTile(
-                              leading: Icon(Icons.flag, color: Colors.orange),
-                              title: Text('Report Post'),
-                              contentPadding: EdgeInsets.zero,
+                        const SizedBox(width: 8),
+                        PopupMenuButton<String>(
+                          onSelected: (value) {
+                            if (value == 'hide') {
+                              _hidePost(context);
+                            } else if (value == 'edit') {
+                              _editPost(context);
+                            } else if (value == 'delete') {
+                              _deletePost(context);
+                            } else if (value == 'report') {
+                              _reportPost(context);
+                            }
+                          },
+                          itemBuilder: (context) => [
+                            // Only show edit and delete options if current user is the author
+                            if (_currentUserId == widget.post.authorId) ...[
+                              const PopupMenuItem(
+                                value: 'edit',
+                                child: ListTile(
+                                  leading: Icon(Icons.edit),
+                                  title: Text('Edit Post'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              const PopupMenuItem(
+                                value: 'delete',
+                                child: ListTile(
+                                  leading: Icon(Icons.delete, color: Colors.red),
+                                  title: Text('Delete Post',
+                                      style: TextStyle(color: Colors.red)),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                              const PopupMenuDivider(),
+                            ],
+                            // Show hide option for all users
+                            const PopupMenuItem(
+                              value: 'hide',
+                              child: ListTile(
+                                leading: Icon(Icons.visibility_off),
+                                title: Text('Hide Post'),
+                                contentPadding: EdgeInsets.zero,
+                              ),
                             ),
-                          ),
+                            // Add report option, but only if the current user is NOT the author
+                            if (_currentUserId != widget.post.authorId)
+                              const PopupMenuItem(
+                                value: 'report',
+                                child: ListTile(
+                                  leading: Icon(Icons.flag, color: Colors.orange),
+                                  title: Text('Report Post'),
+                                  contentPadding: EdgeInsets.zero,
+                                ),
+                              ),
+                          ],
+                        ),
                       ],
-                    ),
-                  ],
+                    );
+                  },
                 ),
+                
+                // Rest of your post content...
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Column(
@@ -838,7 +859,7 @@ class _PostCardState extends State<PostCard> {
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.25,
                         ),
-                        maxLines: 2, // Limit to 2 lines
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                       ),
                       const SizedBox(height: 8),
@@ -848,12 +869,14 @@ class _PostCardState extends State<PostCard> {
                           fontSize: 14,
                           height: 1.5,
                         ),
-                        maxLines: 8, // Show reasonable preview
+                        maxLines: 8,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
                 ),
+                
+                // Images section
                 if (widget.post.mediaUrls.isNotEmpty)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -900,6 +923,8 @@ class _PostCardState extends State<PostCard> {
                       ),
                     ),
                   ),
+                
+                // Stats row
                 Padding(
                   padding: const EdgeInsets.all(12),
                   child: Row(
@@ -917,6 +942,8 @@ class _PostCardState extends State<PostCard> {
                   ),
                 ),
                 const Divider(height: 1),
+                
+                // Action buttons
                 Row(
                   children: [
                     Expanded(

@@ -28,6 +28,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   bool _isLoading = false;
+  bool _notificationsEnabled = true; // Add this to your _ProfileScreenState class
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotificationPreference(); // Load notification preference on init
+  }
+
+  Future<void> _loadNotificationPreference() async {
+    final doc = await _firestore.collection('users').doc(_auth.currentUser!.uid).get();
+    final userData = doc.data();
+    
+    setState(() {
+      _notificationsEnabled = userData?['notificationsEnabled'] ?? true;
+    });
+  }
 
   Future<void> _uploadProfilePicture() async {
     if (_auth.currentUser == null) return;
@@ -582,9 +598,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 Switch(
-                                  value: true, // You can add a state for this
-                                  onChanged: (value) {
-                                    // Handle notification preference
+                                  value: _notificationsEnabled, // Use actual state
+                                  onChanged: (value) async {
+                                    setState(() {
+                                      _notificationsEnabled = value;
+                                    });
+                                    
+                                    // Save to Firestore
+                                    await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+                                      'notificationsEnabled': value,
+                                    });
+                                    
+                                    // Show feedback
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(
+                                        content: Text(
+                                          value ? 'Notifications enabled' : 'Notifications disabled',
+                                          style: GoogleFonts.poppins(),
+                                        ),
+                                      ),
+                                    );
                                   },
                                 ),
                               ],
@@ -926,4 +959,19 @@ class _LockedField extends StatelessWidget {
       ),
     );
   }
+}
+
+// In your notification handler code (separate service):
+Future<void> sendNotificationToUser(String userId, String title, String body) async {
+  // Check if user has notifications enabled
+  final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+  final notificationsEnabled = userDoc.data()?['notificationsEnabled'] ?? true;
+  
+  if (!notificationsEnabled) {
+    print('User has notifications disabled - skipping');
+    return;
+  }
+  
+  // Send the notification
+  // ... FCM implementation
 }

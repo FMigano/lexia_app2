@@ -177,15 +177,25 @@ class _AppointmentsList extends StatelessWidget {
         // Check and update past appointments to "done" status
         _updatePastAppointmentsStatus(appointments);
 
+        // REPLACE the filtering logic with this to handle cancelled appointments:
         final filteredAppointments = appointments.where((doc) {
           final data = doc.data() as Map<String, dynamic>;
           final appointmentTime =
               (data['appointmentTime'] as Timestamp).toDate();
+          final status = data['status'] as String;
 
           if (isPast) {
-            return appointmentTime.isBefore(now);
+            // Past tab: show past appointments OR cancelled appointments
+            return appointmentTime.isBefore(now) ||
+                status == 'cancelled' ||
+                status == 'done' ||
+                status == 'completed';
           } else {
-            return appointmentTime.isAfter(now);
+            // Upcoming tab: show future appointments that aren't cancelled
+            return appointmentTime.isAfter(now) &&
+                status != 'cancelled' &&
+                status != 'done' &&
+                status != 'completed';
           }
         }).toList();
 
@@ -327,7 +337,7 @@ class _AppointmentsList extends StatelessWidget {
                         ),
                       ),
 
-                    // For accepted appointments, show Reschedule option
+                    // Show Cancel button for accepted appointments too
                     if (!isPast && status == 'accepted')
                       Padding(
                         padding: const EdgeInsets.only(top: 8.0),
@@ -335,9 +345,11 @@ class _AppointmentsList extends StatelessWidget {
                           mainAxisAlignment: MainAxisAlignment.end,
                           children: [
                             OutlinedButton(
-                              onPressed: () => _rescheduleAppointment(
-                                  context, appointment.id),
-                              child: const Text('RESCHEDULE'),
+                              onPressed: () => _cancelAppointment(context, appointment.id),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.red,
+                              ),
+                              child: const Text('CANCEL'),
                             ),
                           ],
                         ),
@@ -400,17 +412,35 @@ class _AppointmentsList extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cancel Appointment'),
-        content:
-            const Text('Are you sure you want to cancel this appointment?'),
+        title: Text(
+          'Cancel Appointment',
+          style: GoogleFonts.poppins(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        content: Text(
+          'Are you sure you want to cancel this appointment? This action cannot be undone.',
+          style: GoogleFonts.poppins(),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('NO'),
+            child: Text(
+              'Keep Appointment',
+              style: GoogleFonts.poppins(),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('YES'),
+            style: TextButton.styleFrom(
+              foregroundColor: Colors.red.shade600,
+            ),
+            child: Text(
+              'Cancel Appointment',
+              style: GoogleFonts.poppins(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
         ],
       ),
@@ -421,17 +451,33 @@ class _AppointmentsList extends StatelessWidget {
         await FirebaseFirestore.instance
             .collection('appointments')
             .doc(appointmentId)
-            .update({'status': 'cancelled'});
+            .update({
+          'status': 'cancelled',
+          'cancelledAt': FieldValue.serverTimestamp(),
+          'cancelledBy': FirebaseAuth.instance.currentUser?.uid,
+        });
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Appointment cancelled')),
+            SnackBar(
+              content: Text(
+                'Appointment cancelled successfully',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.orange.shade600,
+            ),
           );
         }
       } catch (e) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error cancelling appointment: $e')),
+            SnackBar(
+              content: Text(
+                'Error cancelling appointment: $e',
+                style: GoogleFonts.poppins(),
+              ),
+              backgroundColor: Colors.red,
+            ),
           );
         }
       }
@@ -457,17 +503,6 @@ class _AppointmentsList extends StatelessWidget {
           SnackBar(content: Text('Error accepting appointment: $e')),
         );
       }
-    }
-  }
-
-  Future<void> _rescheduleAppointment(
-      BuildContext context, String appointmentId) async {
-    // This would typically show a date/time picker and then update the appointment
-    // For now, just show a placeholder message
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reschedule functionality coming soon')),
-      );
     }
   }
 
