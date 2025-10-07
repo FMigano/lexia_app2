@@ -282,19 +282,91 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _completionPercentage = 0;
     }
 
-    // Calculate energy efficiency
-    final enemiesDefeated =
-        _userData!['dungeons']?['progress']?['enemies_defeated'] as int? ?? 0;
-    final currentEnergy =
-        _userData!['stats']?['player']?['energy'] as int? ?? 20;
+    // Calculate energy efficiency with improved formula
+    final enemiesDefeated = _userData!['dungeons']?['progress']?['enemies_defeated'] as int? ?? 0;
+    final currentEnergy = _userData!['stats']?['player']?['energy'] as int? ?? 20;
     const maxEnergy = 20;
     final energyUsed = maxEnergy - currentEnergy;
 
-    if (energyUsed > 0) {
-      final performanceScore = _totalStagesCompleted + (enemiesDefeated * 0.5);
-      _energyEfficiency = (performanceScore / energyUsed * 100).round();
+    // Get additional performance metrics
+    final currentLevel = _userData!['stats']?['player']?['level'] as int? ?? 1;
+    final totalExp = _userData!['stats']?['player']?['exp'] as int? ?? 0;
+
+    // Calculate stage completion rate (stages per day)
+    final stageCompletionRate = _daysActive > 0 ? _totalStagesCompleted / _daysActive : 0;
+
+    // Calculate word challenge performance
+    final wordChallengeTotal = _correctWords + _mistakeWords;
+    final wordChallengeScore = wordChallengeTotal > 0 ? (_correctWords / wordChallengeTotal) : 0;
+
+    // IMPROVED EFFICIENCY CALCULATION WITH BETTER EDGE CASE HANDLING
+    if (_totalStagesCompleted > 0 || energyUsed > 0) {
+      // Components of efficiency (weighted):
+      
+      // 1. Stage progression (40%) - Stages completed relative to energy used or stages themselves
+      double stageEfficiency = 0;
+      if (energyUsed > 0) {
+        stageEfficiency = ((_totalStagesCompleted / energyUsed).clamp(0, 5) / 5) * 40;
+      } else if (_totalStagesCompleted > 0) {
+        // If no energy used yet but stages completed (edge case)
+        stageEfficiency = (_totalStagesCompleted / _totalPossibleStages * 40);
+      }
+      
+      // 2. Enemy defeat rate (20%) - Enemies per stage or per energy
+      double enemyEfficiency = 0;
+      if (_totalStagesCompleted > 0) {
+        final enemiesPerStage = enemiesDefeated / _totalStagesCompleted;
+        enemyEfficiency = (enemiesPerStage.clamp(0, 5) / 5) * 20; // Expect ~2 enemies per stage
+      }
+      
+      // 3. Learning performance (20%) - Word accuracy with volume bonus
+      double learningEfficiency = 0;
+      if (wordChallengeTotal > 0) {
+        final volumeMultiplier = (wordChallengeTotal / 20).clamp(0, 1); // Scale up to 20 attempts
+        learningEfficiency = (wordChallengeScore * volumeMultiplier) * 20;
+      }
+      
+      // 4. Level progression (10%) - Level relative to days or stages
+      double levelEfficiency = 0;
+      if (_totalStagesCompleted > 0) {
+        final expectedLevel = (_totalStagesCompleted / 3).ceil(); // ~3 stages per level
+        final levelRatio = (currentLevel / expectedLevel.clamp(1, 100)).clamp(0, 1.5);
+        levelEfficiency = levelRatio * 10;
+      } else if (_daysActive > 0) {
+        levelEfficiency = ((currentLevel / _daysActive).clamp(0, 2) / 2) * 10;
+      }
+      
+      // 5. Consistency (10%) - Stage completion rate
+      double consistencyEfficiency = 0;
+      if (_daysActive > 0 && _totalStagesCompleted > 0) {
+        consistencyEfficiency = (stageCompletionRate.clamp(0, 3) / 3) * 10;
+      }
+      
+      // Total efficiency score (0-100)
+      final totalEfficiency = stageEfficiency + enemyEfficiency + learningEfficiency + 
+                              levelEfficiency + consistencyEfficiency;
+      
+      _energyEfficiency = totalEfficiency.round().clamp(0, 100);
+      
+      debugPrint('=== EFFICIENCY CALCULATION ===');
+      debugPrint('Total stages: $_totalStagesCompleted');
+      debugPrint('Energy used: $energyUsed/$maxEnergy');
+      debugPrint('Enemies defeated: $enemiesDefeated');
+      debugPrint('Word challenges: $_correctWords/$wordChallengeTotal (${(wordChallengeScore * 100).toStringAsFixed(1)}%)');
+      debugPrint('Current level: $currentLevel');
+      debugPrint('Days active: $_daysActive');
+      debugPrint('---');
+      debugPrint('Stage efficiency (40%): ${stageEfficiency.toStringAsFixed(1)}');
+      debugPrint('Enemy efficiency (20%): ${enemyEfficiency.toStringAsFixed(1)}');
+      debugPrint('Learning efficiency (20%): ${learningEfficiency.toStringAsFixed(1)}');
+      debugPrint('Level efficiency (10%): ${levelEfficiency.toStringAsFixed(1)}');
+      debugPrint('Consistency efficiency (10%): ${consistencyEfficiency.toStringAsFixed(1)}');
+      debugPrint('Total efficiency: $_energyEfficiency%');
+      debugPrint('================================');
     } else {
-      _energyEfficiency = currentEnergy == maxEnergy ? 100 : 0;
+      // No activity yet - 0% efficiency
+      _energyEfficiency = 0;
+      debugPrint('No activity detected - efficiency set to 0%');
     }
 
     // CORRECTED: Language learning statistics from word_challenges
@@ -471,6 +543,67 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _showAvailableUsers() async {
+    try {
+      final querySnapshot = await _firestore.collection('dyslexia_users').get();
+      final availableUsers = <String>[];
+      
+      for (final doc in querySnapshot.docs) {
+        final data = doc.data();
+        if (data['profile']?['username'] != null) {
+          availableUsers.add(data['profile']['username'].toString());
+        }
+      }
+
+      if (context.mounted) {
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: Text(
+              'Available Users (${availableUsers.length})',
+              style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+            ),
+            content: SizedBox(
+              width: double.maxFinite,
+              height: 300,
+              child: ListView.builder(
+                itemCount: availableUsers.length,
+                itemBuilder: (context, index) {
+                  return ListTile(
+                    title: Text(
+                      availableUsers[index],
+                      style: GoogleFonts.poppins(),
+                    ),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pop();
+                      _searchUserByUsername(availableUsers[index]);
+                    },
+                  );
+                },
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: Text(
+                  'Close',
+                  style: GoogleFonts.poppins(),
+                ),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to load users: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildStatCard(String title, String value, IconData icon,
@@ -948,57 +1081,23 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Stats Grid
-                        GridView.count(
-                          crossAxisCount: 2,
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          mainAxisSpacing: 12,
-                          crossAxisSpacing: 12,
-                          children: [
-                            _buildStatCard(
-                              'Health',
-                              '${_userData?['stats']?['player']?['health'] ?? 0}',
-                              Icons.favorite,
-                              color: Colors.red,
-                            ),
-                            _buildStatCard(
-                              'Energy',
-                              '${_userData?['stats']?['player']?['energy'] ?? 0}/20',
-                              Icons.battery_charging_full,
-                              color: Colors.green,
-                            ),
-                            _buildStatCard(
-                              'Durability',
-                              '${_userData?['stats']?['player']?['durability'] ?? 0}',
-                              Icons.shield,
-                              color: Colors.blue,
-                            ),
-                            _buildStatCard(
-                              'Damage',
-                              '${_userData?['stats']?['player']?['damage'] ?? 0}',
-                              Icons.flash_on,
-                              color: Colors.orange,
-                            ),
-                            _buildStatCard(
-                              'Age',
-                              '${_userData?['profile']?['age'] ?? 0}',
-                              Icons.cake,
-                              color: Colors.purple,
-                            ),
-                            _buildStatCard(
-                              'Birthday',
-                              _userData?['profile']?['birth_date'] ?? 'Not Set',
-                              Icons.calendar_today,
-                              color: Colors.pink,
-                            ),
-                          ],
-                        ),
+                        // NEW: Characters Section
+                        _buildCharactersSection(),
 
                         const SizedBox(height: 24),
 
-                        // Language Learning Statistics
-                        _buildLanguageLearningSection(),
+                        // NEW: Learning Modules Progress Section  
+                        _buildLearningModulesSection(),
+
+                        const SizedBox(height: 24),
+
+                        // NEW: Stage Performance Times Section
+                        _buildStagePerformanceSection(),
+
+                        const SizedBox(height: 24),
+
+                        // NEW: Word Challenges Section
+                        _buildWordChallengesSection(),
 
                         const SizedBox(height: 24),
 
@@ -1305,4 +1404,1270 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       ),
     );
   }
+
+  // NEW: Build method for Characters Section
+  Widget _buildCharactersSection() {
+    // Access data correctly - unlocked_count and selected_character are at root level
+    final selectedCharacter = _userData?['selected_character'] as int? ?? 0;
+    final unlockedCount = _userData?['unlocked_count'] as int? ?? 1; // Default to 1
+    final currentCharacter = _userData?['stats']?['player']?['current_character'] as String? ?? 'lexia';
+    final unlockNotifications = _userData?['unlock_notifications_shown'] as List<dynamic>? ?? [];
+
+    // Map character name to number: 1 for Ragna, 2 for Lexia
+    String getCharacterDisplayNumber(String characterName) {
+      switch (characterName.toLowerCase()) {
+        case 'ragna':
+          return '1';
+        case 'lexia':
+          return '2';
+        default:
+          return '0';
+      }
+    }
+
+    final characterNumber = getCharacterDisplayNumber(currentCharacter);
+
+    // Add debug print to see what's happening
+    debugPrint('=== CHARACTER UNLOCK DEBUG ===');
+    debugPrint('Raw userData keys: ${_userData?.keys.toList()}');
+    debugPrint('Raw selected_character: ${_userData?['selected_character']}');
+    debugPrint('Raw unlocked_count: ${_userData?['unlocked_count']}');
+    debugPrint('Selected character value: $selectedCharacter');
+    debugPrint('Unlocked count value: $unlockedCount');
+    debugPrint('Current character name: $currentCharacter');
+    debugPrint('Character number: $characterNumber');
+    debugPrint('Unlock notifications: $unlockNotifications');
+    debugPrint('================================');
+
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.person, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Character Progress',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            Row(
+              children: [
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.purple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.face, color: Colors.purple, size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          currentCharacter.toUpperCase(),
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Current Character',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.star, color: Colors.amber, size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          characterNumber, // Shows 1 for Ragna, 2 for Lexia
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Selected',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.green.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(Icons.lock_open, color: Colors.green, size: 24),
+                        const SizedBox(height: 8),
+                        Text(
+                          '$unlockedCount', // Shows actual unlocked_count from database (2)
+                          style: GoogleFonts.poppins(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.green,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        Text(
+                          'Unlocked',
+                          style: GoogleFonts.poppins(
+                            fontSize: 11,
+                            color: Colors.grey[700],
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            
+            // Character Stats
+            const Divider(),
+            const SizedBox(height: 12),
+            Text(
+              'Character Stats',
+              style: GoogleFonts.poppins(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildStatBox(
+                    'Health',
+                    '${_userData?['stats']?['player']?['health'] ?? 0}/${_userData?['stats']?['player']?['base_health'] ?? 0}',
+                    Icons.favorite,
+                    Colors.red,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Damage',
+                    '${_userData?['stats']?['player']?['damage'] ?? 0}',
+                    Icons.flash_on,
+                    Colors.orange,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildStatBox(
+                    'Durability',
+                    '${_userData?['stats']?['player']?['durability'] ?? 0}',
+                    Icons.shield,
+                    Colors.blue,
+                  ),
+                ),
+              ],
+            ),
+            
+            // Show unlocked characters list if available
+            if (unlockNotifications.isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.blue.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Unlocked Characters:',
+                      style: GoogleFonts.poppins(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      unlockNotifications.map((char) => char.toString().toUpperCase()).join(', '),
+                      style: GoogleFonts.poppins(
+                        fontSize: 12,
+                        color: Colors.grey[600],
+                        fontStyle: FontStyle.italic,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLearningModulesSection() {
+  final modules = _userData?['modules'] as Map<String, dynamic>?;
+  
+  return Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.school, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Learning Modules Progress',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          if (modules == null) ...[
+            _buildEmptyDataCard('No learning modules data available'),
+          ] else ...[
+            // Phonics Module - WITH sub-items (like Read Aloud)
+            _buildPhonicsModuleCard(modules),
+            
+            const SizedBox(height: 12),
+            
+            // Flip Quiz Module - WITH sub-items (like Read Aloud)
+            _buildFlipQuizModuleCard(modules),
+            
+            const SizedBox(height: 12),
+            
+            // Read Aloud Module - WITH sub-items (existing)
+            _buildReadAloudModuleCard(modules),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildPhonicsModuleCard(Map<String, dynamic> modules) {
+  final phonicsData = _calculatePhonicsProgress(modules['phonics']);
+  
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.blue.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main Phonics header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.abc, color: Colors.blue, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Phonics',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        phonicsData['completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: phonicsData['completed'] ? Colors.green : Colors.grey,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Progress: ${(phonicsData['progress'] as num).toStringAsFixed(1)}%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Sub-modules for Phonics
+        Padding(
+          padding: const EdgeInsets.only(left: 40),
+          child: Column(
+            children: [
+              // Letters Completed sub-module
+              _buildSubModuleRow(
+                'Letters Completed',
+                ((modules['phonics']?['letters_completed'] as List<dynamic>?)?.length ?? 0) / 26 * 100,
+                (modules['phonics']?['letters_completed'] as List<dynamic>?)?.length ?? 0,
+                26, // max letters
+                Icons.text_fields,
+                Colors.indigo,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Sight Words sub-module  
+              _buildSubModuleRow(
+                'Sight Words',
+                ((modules['phonics']?['sight_words_completed'] as List<dynamic>?)?.length ?? 0) / 20 * 100,
+                (modules['phonics']?['sight_words_completed'] as List<dynamic>?)?.length ?? 0,
+                20, // max sight words
+                Icons.visibility,
+                Colors.cyan,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildFlipQuizModuleCard(Map<String, dynamic> modules) {
+  final flipQuizData = _calculateFlipQuizProgress(modules['flip_quiz']);
+  
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.green.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.green.withOpacity(0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main Flip Quiz header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.green.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.quiz, color: Colors.green, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Flip Quiz',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        flipQuizData['completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: flipQuizData['completed'] ? Colors.green : Colors.grey,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Progress: ${(flipQuizData['progress'] as num).toStringAsFixed(1)}%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Sub-modules for Flip Quiz
+        Padding(
+          padding: const EdgeInsets.only(left: 40),
+          child: Column(
+            children: [
+              // Animals Sets sub-module
+              _buildSubModuleRow(
+                'Animals Sets',
+                ((modules['flip_quiz']?['animals']?['sets_completed'] as List<dynamic>?)?.length ?? 0) / 3 * 100,
+                (modules['flip_quiz']?['animals']?['sets_completed'] as List<dynamic>?)?.length ?? 0,
+                3, // max animals sets
+                Icons.pets,
+                Colors.brown,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Vehicles Sets sub-module  
+              _buildSubModuleRow(
+                'Vehicles Sets',
+                ((modules['flip_quiz']?['vehicles']?['sets_completed'] as List<dynamic>?)?.length ?? 0) / 3 * 100,
+                (modules['flip_quiz']?['vehicles']?['sets_completed'] as List<dynamic>?)?.length ?? 0,
+                3, // max vehicles sets
+                Icons.directions_car,
+                Colors.blueGrey,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildStagePerformanceSection() {
+  final stageTimes = _userData?['stage_times'] as Map<String, dynamic>?;
+  
+  return Card(
+    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    child: Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.timer, color: Theme.of(context).colorScheme.primary),
+              const SizedBox(width: 8),
+              Text(
+                'Stage Performance Times',
+                style: GoogleFonts.poppins(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          
+          if (stageTimes == null || stageTimes.isEmpty) ...[
+            _buildEmptyDataCard('No stage performance data available'),
+          ] else ...[
+            // Performance summary
+            Builder(
+              builder: (context) {
+                // Calculate total time and average
+                double totalTime = 0;
+                int totalStages = 0;
+                
+                stageTimes.forEach((dungeonKey, dungeonData) {
+                  if (dungeonData is Map<String, dynamic>) {
+                    dungeonData.forEach((stageKey, time) {
+                      if (time is num) {
+                        totalTime += time;
+                        totalStages++;
+                      }
+                    });
+                  }
+                });
+                
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildPerformanceMetric(
+                        'Total Time',
+                        _formatStageTime(totalTime),
+                        Icons.timer,
+                        Colors.blue,
+                      ),
+                      _buildPerformanceMetric(
+                        'Stages',
+                        '$totalStages',
+                        Icons.flag,
+                        Colors.green,
+                      ),
+                      _buildPerformanceMetric(
+                        'Avg Time',
+                        totalStages > 0 ? _formatStageTime(totalTime / totalStages) : '0s',
+                        Icons.speed,
+                        Colors.orange,
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            
+            const SizedBox(height: 16),
+            
+            // Show stage times for each dungeon
+            for (String dungeonKey in stageTimes.keys)
+              _buildDungeonTimeCard(dungeonKey, stageTimes[dungeonKey] as Map<String, dynamic>),
+          ],
+        ],
+      ),
+    ),
+  );
+}
+
+  Widget _buildWordChallengesSection() {
+    final wordChallenges = _userData?['word_challenges'] as Map<String, dynamic>?;
+    
+    return Card(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(Icons.quiz, color: Theme.of(context).colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  'Word Challenges Performance',
+                  style: GoogleFonts.poppins(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            
+            if (wordChallenges == null) ...[
+              _buildEmptyDataCard('No word challenges data available'),
+            ] else ...[
+              // Challenge performance cards
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildChallengeCard(
+                      'STT (Speech-to-Text)',
+                      wordChallenges['completed']?['stt'] ?? 0,
+                      wordChallenges['failed']?['stt'] ?? 0,
+                      Icons.mic,
+                      Colors.purple,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildChallengeCard(
+                      'Whiteboard',
+                      wordChallenges['completed']?['whiteboard'] ?? 0,
+                      wordChallenges['failed']?['whiteboard'] ?? 0,
+                      Icons.edit,
+                      Colors.teal,
+                    ),
+                  ),
+                ],
+              ),
+              
+              const SizedBox(height: 16),
+              
+              // Overall performance summary
+              _buildOverallChallengePerformance(wordChallenges),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Helper methods for the new sections:
+
+  Widget _buildCharacterStat(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 24),
+          const SizedBox(height: 8),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.grey[700],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatBox(String label, String value, IconData icon, Color color) {
+    return Container(
+      padding: const EdgeInsets.all(8),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            label,
+            style: GoogleFonts.poppins(
+              fontSize: 10,
+              color: Colors.grey[700],
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailedModuleCard(String title, Map<String, dynamic>? moduleData, IconData icon, Color color, {List<String>? additionalInfo}) {
+  final isCompleted = moduleData?['completed'] as bool? ?? false;
+  final progress = moduleData?['progress'] as num? ?? 0;
+  
+  // Debug print to see what data we're getting
+  debugPrint('Building card for $title: completed=$isCompleted, progress=$progress');
+  
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: color.withOpacity(0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: color.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, color: color, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: isCompleted ? Colors.green : Colors.grey,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  // FIXED: ALWAYS show progress, not just when > 0
+                  const SizedBox(height: 4),
+                  Text(
+                    'Progress: ${progress.toStringAsFixed(1)}%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        if (additionalInfo != null && additionalInfo.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          ...additionalInfo.map((info) => Padding(
+            padding: const EdgeInsets.only(left: 40, top: 2),
+            child: Text(
+              '• $info',
+              style: GoogleFonts.poppins(
+                fontSize: 11,
+                color: Colors.grey[600],
+              ),
+            ),
+          )),
+        ],
+      ],
+    ),
+  );
+}
+
+  Widget _buildEmptyDataCard(String message) {
+    return Container(
+      width: double.infinity, // Fixed: Ensure it takes full width properly
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.info_outline, color: Colors.grey.shade600, size: 20), // Smaller icon
+          const SizedBox(width: 8), // Reduced spacing
+          Expanded( // Fixed: Wrap text in Expanded to prevent overflow
+            child: Text(
+              message,
+              style: GoogleFonts.poppins(
+                fontSize: 13, // Slightly smaller font
+                color: Colors.grey.shade700,
+              ),
+              overflow: TextOverflow.ellipsis, // Handle text overflow
+              maxLines: 2, // Allow up to 2 lines
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPerformanceMetric(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: color, // Keep the metric color
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: Colors.white, // Fixed: White text for labels
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildDungeonTimeCard(String dungeonKey, Map<String, dynamic> stageData) {
+  return Container(
+    margin: const EdgeInsets.only(bottom: 12),
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      color: Colors.grey.shade800,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade600),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          dungeonKey.replaceAll('_', ' ').toUpperCase(),
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Fixed: Use Wrap instead of GridView to prevent overflow
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (String stageKey in stageData.keys)
+              _buildStageTimeChip(stageKey, stageData[stageKey] as num),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildStageTimeChip(String stageName, num timeSeconds) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6), // Reduced padding
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.blue.shade700, Colors.blue.shade600],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12), // Less rounded for more space
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Text(
+        '${stageName.replaceAll('stage_', 'S')}: ${_formatStageTime(timeSeconds)}',
+        style: GoogleFonts.poppins(
+          fontSize: 11, // Smaller font to fit better
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    );
+  }
+
+  Widget _buildChallengeCard(String title, int completed, int failed, IconData icon, Color color) {
+    final total = completed + failed;
+    final accuracy = total > 0 ? (completed / total * 100) : 0.0;
+    
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withOpacity(0.3)),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, color: color, size: 28),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: GoogleFonts.poppins(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${accuracy.toStringAsFixed(1)}%',
+            style: GoogleFonts.poppins(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '✓$completed  ✗$failed',
+            style: GoogleFonts.poppins(
+              fontSize: 11,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildOverallChallengePerformance(Map<String, dynamic> wordChallenges) {
+  final sttCompleted = wordChallenges['completed']?['stt'] ?? 0;
+  final sttFailed = wordChallenges['failed']?['stt'] ?? 0;
+  final whiteboardCompleted = wordChallenges['completed']?['whiteboard'] ?? 0;
+  final whiteboardFailed = wordChallenges['failed']?['whiteboard'] ?? 0;
+  
+  final totalCompleted = sttCompleted + whiteboardCompleted;
+  final totalFailed = sttFailed + whiteboardFailed;
+  final totalAttempts = totalCompleted + totalFailed;
+  final overallAccuracy = totalAttempts > 0 ? (totalCompleted / totalAttempts * 100) : 0.0;
+  
+  return Container(
+    padding: const EdgeInsets.all(16),
+    decoration: BoxDecoration(
+      // Fixed: Use solid dark background instead of light gradient
+      color: Colors.grey.shade800,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade600),
+    ),
+    child: Column(
+      children: [
+        Text(
+          'Overall Performance',
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: Colors.white, // Fixed: White text on dark background
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          children: [
+            _buildOverallMetric('Total Correct', '$totalCompleted', Icons.check_circle, Colors.green),
+            _buildOverallMetric('Total Failed', '$totalFailed', Icons.cancel, Colors.red),
+            _buildOverallMetric('Accuracy', '${overallAccuracy.toStringAsFixed(1)}%', Icons.gps_fixed, Colors.blue),
+          ],
+        ),
+      ],
+    ),
+  );
+}
+
+  Widget _buildOverallMetric(String label, String value, IconData icon, Color color) {
+    return Column(
+      children: [
+        Icon(icon, color: color, size: 24),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.poppins(
+            fontSize: 16,
+            fontWeight: FontWeight.w700,
+            color: color, // Keep the metric color
+          ),
+        ),
+        Text(
+          label,
+          style: GoogleFonts.poppins(
+            fontSize: 11,
+            color: Colors.white, // Fixed: White text for labels
+            fontWeight: FontWeight.w500,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
+
+  String _formatStageTime(num timeSeconds) {
+    if (timeSeconds < 60) {
+      return '${timeSeconds.toStringAsFixed(1)}s';
+    } else {
+      final minutes = (timeSeconds / 60).floor();
+      final seconds = (timeSeconds % 60).toStringAsFixed(1);
+      return '${minutes}m ${seconds}s';
+    }
+  }
+
+  // Missing calculation methods:
+  Map<String, dynamic> _calculatePhonicsProgress(Map<String, dynamic>? phonicsData) {
+  if (phonicsData == null) return {'completed': false, 'progress': 0};
+  
+  final lettersCompleted = (phonicsData['letters_completed'] as List<dynamic>?)?.length ?? 0;
+  final sightWordsCompleted = (phonicsData['sight_words_completed'] as List<dynamic>?)?.length ?? 0;
+  
+  // Calculate progress: Letters (26 max) + Sight Words (20 max) = 46 total
+  final totalProgress = ((lettersCompleted + sightWordsCompleted) / 46 * 100);
+  final isCompleted = lettersCompleted >= 26 && sightWordsCompleted >= 20;
+  
+  return {
+    'completed': isCompleted,
+    'progress': totalProgress,
+  };
+}
+
+Map<String, dynamic> _calculateFlipQuizProgress(Map<String, dynamic>? flipQuizData) {
+  if (flipQuizData == null) return {'completed': false, 'progress': 0};
+  
+  final animalsSets = (flipQuizData['animals']?['sets_completed'] as List<dynamic>?)?.length ?? 0;
+  final vehiclesSets = (flipQuizData['vehicles']?['sets_completed'] as List<dynamic>?)?.length ?? 0;
+  
+  // Calculate progress: Animals (3 max) + Vehicles (3 max) = 6 total
+  final totalProgress = ((animalsSets + vehiclesSets) / 6 * 100);
+  final isCompleted = animalsSets >= 3 && vehiclesSets >= 3;
+  
+  return {
+    'completed': isCompleted,
+    'progress': totalProgress,
+  };
+}
+
+Map<String, dynamic> _calculateReadAloudProgress(Map<String, dynamic>? modules) {
+  if (modules == null) return {'completed': false, 'progress': 0};
+  
+  final readAloud = modules['read_aloud'];
+  if (readAloud == null) return {'completed': false, 'progress': 0};
+  
+  // FIXED: Access nested data correctly
+  final guidedReading = readAloud['guided_reading'];
+  final syllableWorkshop = readAloud['syllable_workshop'];
+  
+  // Debug the data
+  debugPrint('=== READ ALOUD DEBUG ===');
+  debugPrint('Read Aloud data: $readAloud');
+  debugPrint('Guided Reading data: $guidedReading');
+  debugPrint('Syllable Workshop data: $syllableWorkshop');
+  
+  // Guided Reading: max 4 activities
+  final guidedActivities = (guidedReading?['activities_completed'] as List<dynamic>?)?.length ?? 0;
+  final guidedProgress = (guidedActivities / 4 * 100).clamp(0, 100);
+  
+  // Syllable Workshop: max 9 words
+  final syllableWords = (syllableWorkshop?['activities_completed'] as List<dynamic>?)?.length ?? 0;
+  final syllableProgress = (syllableWords / 9 * 100).clamp(0, 100);
+  
+  // Overall progress: average of both sub-modules
+  final totalProgress = (guidedProgress + syllableProgress) / 2;
+  
+  // Check if Read Aloud itself is completed OR both sub-modules are complete
+  final isCompleted = (readAloud['completed'] as bool? ?? false) || 
+                     (guidedActivities >= 4 && syllableWords >= 9);
+  
+  debugPrint('Guided: $guidedActivities/4 = ${guidedProgress.toStringAsFixed(1)}%');                   
+  debugPrint('Syllable: $syllableWords/9 = ${syllableProgress.toStringAsFixed(1)}%');
+  debugPrint('Total Read Aloud progress: ${totalProgress.toStringAsFixed(1)}%');
+  debugPrint('========================');
+  
+  return {
+    'completed': isCompleted,
+    'progress': totalProgress,
+
+    'guided_progress': guidedProgress,
+    'guided_activities': guidedActivities,
+    'syllable_progress': syllableProgress,
+    'syllable_words': syllableWords,
+  };
+}
+
+Widget _buildReadAloudModuleCard(Map<String, dynamic> modules) {
+  final readAloudData = _calculateReadAloudProgress(modules);
+  
+  return Container(
+    padding: const EdgeInsets.all(12),
+    decoration: BoxDecoration(
+      color: Colors.purple.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(8),
+      border: Border.all(color: Colors.purple.withOpacity(0.3)),
+    ),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Main Read Aloud header
+        Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.purple.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(Icons.record_voice_over, color: Colors.purple, size: 20),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        'Read Aloud',
+                        style: GoogleFonts.poppins(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        readAloudData['completed'] ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: readAloudData['completed'] ? Colors.green : Colors.grey,
+                        size: 16,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Progress: ${(readAloudData['progress'] as num).toStringAsFixed(1)}%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        
+        const SizedBox(height: 12),
+        
+        // Sub-modules with null-safe access
+        Padding(
+          padding: const EdgeInsets.only(left: 40),
+          child: Column(
+            children: [
+              // Guided Reading sub-module
+              _buildSubModuleRow(
+                'Guided Reading',
+                readAloudData['guided_progress'] ?? 0,
+                readAloudData['guided_activities'] ?? 0,
+                4, // max activities
+                Icons.menu_book,
+                Colors.teal,
+              ),
+              
+              const SizedBox(height: 8),
+              
+              // Syllable Workshop sub-module  
+              _buildSubModuleRow(
+                'Syllable Workshop',
+                readAloudData['syllable_progress'] ?? 0,
+                readAloudData['syllable_words'] ?? 0,
+                9, // max words
+                Icons.format_textdirection_l_to_r,
+                Colors.orange,
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildSubModuleRow(String title, num progress, int completed, int max, IconData icon, Color color) {
+  final isCompleted = completed >= max;
+  
+  return Container(
+    padding: const EdgeInsets.all(8),
+    decoration: BoxDecoration(
+      color: color.withOpacity(0.05),
+      borderRadius: BorderRadius.circular(6),
+      border: Border.all(color: color.withOpacity(0.2)),
+    ),
+    child: Row(
+      children: [
+        Icon(icon, color: color, size:  16),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Icon(
+                    isCompleted ? Icons.check_circle : Icons.radio_button_unchecked,
+                    color: isCompleted ? Colors.green : Colors.grey,
+                    size: 14,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Progress: ${progress.toStringAsFixed(1)}%',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  Text(
+                    '$completed/$max',
+                    style: GoogleFonts.poppins(
+                      fontSize: 11,
+                      color: Colors.grey[600],
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    ),
+  );
+}
 }
