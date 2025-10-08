@@ -142,10 +142,10 @@ class _FeedScreenState extends State<FeedScreen> {
                         });
                       },
                       backgroundColor: category == 'All'
-                          ? Colors.grey[200]
+                          ? const Color.fromARGB(255, 132, 132, 132)
                           : _getCategoryColorWithOpacity(category, 0.15),
                       selectedColor: category == 'All'
-                          ? Colors.blue
+                          ? const Color.fromARGB(255, 59, 60, 60)
                           : _getCategoryColor(category),
                       checkmarkColor: Colors.white,
                     ),
@@ -299,9 +299,9 @@ class _FeedScreenState extends State<FeedScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case 'Question':
-        return const Color(0xFF2196F3); // Vibrant Blue
+        return const Color(0xFF9C27B0); // Vibrant Blue
       case 'Discussion':
-        return const Color(0xFF9C27B0); // Vibrant Purple
+        return const Color(0xFF2196F3); // Vibrant Purple
       case 'Tips':
         return const Color(0xFF4CAF50); // Vibrant Green
       case 'Resource':

@@ -43,17 +43,23 @@ dependencies:
   path: ^1.8.3  # Add this line
   flutter_image_compress: ^2.1.0  # Update to the latest version
   file_picker: ^8.0.0+1  # Add this line
+  shared_preferences: ^2.3.3
   # Remove add_2_calendar and calendar packages
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^5.0.0
+  flutter_launcher_icons: ^0.13.1
 
-# For information on the generic Dart part of this file, see the
-# following page: https://dart.dev/tools/pub/pubspec
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/icon/LEXIA_logo.png"
+  adaptive_icon_background: "#1a1a2e"
+  adaptive_icon_foreground: "assets/images/icon/LEXIA_logo.png"
+  adaptive_icon_foreground_inset: 32  # ✅ Increase this to add more padding (0-48)
 
-# The following section is specific to Flutter packages.
 flutter:
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

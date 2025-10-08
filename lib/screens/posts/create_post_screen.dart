@@ -23,6 +23,7 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _contentController = TextEditingController();
+  final TextEditingController _titleController = TextEditingController();
   final PostService _postService = PostService();
   final ImagePicker _picker = ImagePicker();
   List<XFile>? _selectedImages;
@@ -46,6 +47,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   @override
   void dispose() {
     _contentController.dispose();
+    _titleController.dispose();
     super.dispose();
   }
 
@@ -86,7 +88,25 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       debugPrint('Error picking images: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error picking images: $e')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Error picking images: $e',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     }
@@ -179,20 +199,76 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (_auth.currentUser == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('You must be signed in to create posts')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'You must be signed in to create posts',
+                    style: GoogleFonts.poppins(),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
       return;
     }
 
     final content = _contentController.text.trim();
-    if (content.isEmpty &&
-        (_selectedImages == null || _selectedImages!.isEmpty)) {
+    final title = _titleController.text.trim();
+    
+    // ✅ Enhanced validation with specific messages
+    if (content.isEmpty && title.isEmpty && (_selectedImages == null || _selectedImages!.isEmpty)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text('Please add some content to your post.')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.warning_amber_rounded, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Empty Post',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'Please add a title, content, or images to share',
+                        style: GoogleFonts.poppins(fontSize: 13),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.orange.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {},
+            ),
+          ),
         );
       }
       return;
@@ -212,11 +288,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           authProvider.userRole == app_provider.UserRole.professional;
 
       debugPrint('Creating post with category: $_selectedCategory');
+      debugPrint('Creating post with title: $title');
       debugPrint('Selected images: ${_selectedImages?.length ?? 0}');
 
-      // Call YOUR createPost method instead of _postService.createPost
       await createPost(
         content: content,
+        title: title,
         category: _selectedCategory,
         selectedImages: _selectedImages,
         isProfessional: isProfessional,
@@ -227,7 +304,25 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Post created successfully!')),
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Post created successfully!',
+                    style: GoogleFonts.poppins(fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.green.shade600,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
         );
       }
     } catch (e) {
@@ -235,8 +330,40 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error creating post: $e'),
-            backgroundColor: Colors.red,
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Failed to Create Post',
+                        style: GoogleFonts.poppins(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        e.toString(),
+                        style: GoogleFonts.poppins(fontSize: 12),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: Colors.red.shade700,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
@@ -251,6 +378,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
   Future<DocumentReference?> createPost({
     required String content,
+    String? title,
     required String category,
     List<XFile>? selectedImages,
     List<File>? imageFiles,
@@ -266,7 +394,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           .doc(currentUser.uid)
           .get();
 
-      String authorName = 'User'; // Default fallback
+      String authorName = 'User';
       if (userDoc.exists) {
         final userData = userDoc.data() as Map<String, dynamic>;
         authorName = userData['name']?.toString().trim() ??
@@ -297,12 +425,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
 
       return await firestore.collection('posts').add({
         'content': content,
-        'title': '', // For compatibility
+        'title': title ?? '',
         'mediaUrls': mediaUrls,
-        'imageIds': [], // For compatibility
+        'imageIds': [],
         'category': category,
         'authorId': currentUser.uid,
-        'authorName': authorName, // Now uses the correct name from Firestore
+        'authorName': authorName,
         'authorPhotoUrl': currentUser.photoURL ?? '',
         'createdAt': FieldValue.serverTimestamp(),
         'likeCount': 0,
@@ -529,6 +657,24 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ],
                 ),
               ),
+              TextField(
+                controller: _titleController,
+                maxLines: 1,
+                style: GoogleFonts.poppins(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+                decoration: InputDecoration(
+                  hintText: 'Title (optional)',
+                  hintStyle: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey,
+                  ),
+                  border: InputBorder.none,
+                ),
+              ),
+              const SizedBox(height: 8),
               TextField(
                 controller: _contentController,
                 maxLines: 10,

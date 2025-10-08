@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'terms_and_conditions_screen.dart';
 import 'professional_verification_screen.dart';
-import 'login_screen.dart'; // <-- Add this import
+import 'login_screen.dart';
 
 enum UserRole { parent, professional }
 
@@ -34,6 +34,39 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
+  }
+
+  // Add password strength validator
+  String? _validateStrongPassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Please enter a password';
+    }
+    
+    if (value.length < 8) {
+      return 'Password must be at least 8 characters';
+    }
+    
+    // Check for uppercase letter
+    if (!value.contains(RegExp(r'[A-Z]'))) {
+      return 'Password must contain at least one uppercase letter';
+    }
+    
+    // Check for lowercase letter
+    if (!value.contains(RegExp(r'[a-z]'))) {
+      return 'Password must contain at least one lowercase letter';
+    }
+    
+    // Check for number
+    if (!value.contains(RegExp(r'[0-9]'))) {
+      return 'Password must contain at least one number';
+    }
+    
+    // Check for special character
+    if (!value.contains(RegExp(r'[!@#$%^&*(),.?":{}|<>]'))) {
+      return 'Password must contain at least one special character';
+    }
+    
+    return null;
   }
 
   Future<void> _showTermsAndConditions() async {
@@ -163,7 +196,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void _showVerificationOptionsDialog() {
     showDialog(
       context: context,
-      barrierDismissible: false, // Prevent dismissing by tapping outside
+      barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: Text(
           'Professional Verification',
@@ -185,7 +218,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
             const SizedBox(height: 16),
             
-            // Verify Now Option
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -224,7 +256,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             
             const SizedBox(height: 12),
             
-            // Skip Verification Option
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -263,10 +294,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
         ),
         actions: [
-          // Skip Verification Button
           TextButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop();
               _skipVerificationAndGoToLogin();
             },
             child: Text(
@@ -278,10 +308,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
             ),
           ),
           
-          // Verify Now Button
           ElevatedButton(
             onPressed: () {
-              Navigator.of(context).pop(); // Close dialog
+              Navigator.of(context).pop();
               Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => const ProfessionalVerificationScreen(),
@@ -345,7 +374,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
             width: double.infinity,
             child: OutlinedButton.icon(
               onPressed: () {
-                // Show preview of verification process
                 showDialog(
                   context: context,
                   builder: (context) => AlertDialog(
@@ -417,7 +445,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _skipVerificationAndGoToLogin() async {
-    // Update user's verification status to 'skipped'
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
       await FirebaseFirestore.instance
@@ -429,10 +456,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
     }
     
-    // Sign out the user
     await FirebaseAuth.instance.signOut();
     
-    // Show success message and navigate to login
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -445,7 +470,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
       
-      // FIXED: Use MaterialPageRoute instead of named route
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false,
@@ -454,7 +478,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   void _showRegistrationSuccess() async {
-    // Sign out the user
     await FirebaseAuth.instance.signOut();
     
     if (mounted) {
@@ -469,7 +492,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       );
       
-      // FIXED: Use MaterialPageRoute instead of named route
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false,
@@ -568,6 +590,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   decoration: InputDecoration(
                     labelText: 'Password',
                     hintText: 'Create a strong password',
+                    helperText: 'Min 8 chars: A-Z, a-z, 0-9, and special char (!@#...)',
+                    helperMaxLines: 2,
                     prefixIcon: const Icon(Icons.lock_outline),
                     suffixIcon: IconButton(
                       icon: Icon(_isPasswordVisible ? Icons.visibility_off : Icons.visibility),
@@ -577,15 +601,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter a password';
-                    }
-                    if (value.length < 6) {
-                      return 'Password must be at least 6 characters';
-                    }
-                    return null;
-                  },
+                  validator: _validateStrongPassword,
                 ),
                 const SizedBox(height: 16),
                 
