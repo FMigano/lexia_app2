@@ -62,7 +62,6 @@ flutter_launcher_icons:
   image_path: "assets/images/icon/parentpro_logo.png"
   adaptive_icon_background: "#1a1a2e"
   adaptive_icon_foreground: "assets/images/icon/parentpro_logo.png"
-  adaptive_icon_foreground_inset: 32  # ✅ Increase this to add more padding (0-48)
 
 flutter:
   # The following line ensures that the Material Icons font is

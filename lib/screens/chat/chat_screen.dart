@@ -10,14 +10,14 @@ class ChatScreen extends StatefulWidget {
   final String chatId;
   final String otherUserId;
   final String otherUserName;
-  final bool isPending; // Add this parameter
+  final bool isPending;
 
   const ChatScreen({
     super.key,
     required this.chatId,
     required this.otherUserId,
     required this.otherUserName,
-    this.isPending = false, // Add with default value of false
+    this.isPending = false,
   });
 
   @override
@@ -31,12 +31,13 @@ class _ChatScreenState extends State<ChatScreen> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   bool _isLoading = false;
   bool _isNetworkError = false;
+  String? _otherUserPhotoUrl;
 
   @override
   void initState() {
     super.initState();
-    // Mark messages as read
     _markMessagesAsRead();
+    _fetchOtherUserProfile();
   }
 
   @override
@@ -46,13 +47,24 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
+  Future<void> _fetchOtherUserProfile() async {
+    try {
+      final doc = await _firestore.collection('users').doc(widget.otherUserId).get();
+      if (doc.exists && mounted) {
+        final data = doc.data() as Map<String, dynamic>;
+        setState(() {
+          _otherUserPhotoUrl = (data['photoUrl'] ?? data['profile_image_url'] ?? data['profile_picture']) as String?;
+        });
+      }
+    } catch (_) {}
+  }
+
   Future<void> _markMessagesAsRead() async {
     try {
       await _firestore.collection('chats').doc(widget.chatId).update({
         'unreadCount.${_auth.currentUser?.uid}': 0,
       });
 
-      // If we got here, connection is working again
       if (_isNetworkError && mounted) {
         setState(() {
           _isNetworkError = false;
@@ -75,7 +87,6 @@ class _ChatScreenState extends State<ChatScreen> {
       _isNetworkError = true;
     });
 
-    // Show a snackbar with retry option
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
@@ -90,12 +101,28 @@ class _ChatScreenState extends State<ChatScreen> {
             setState(() {
               _isNetworkError = false;
             });
-            // Attempt to reconnect
             _markMessagesAsRead();
           },
         ),
       ),
     );
+  }
+
+  String _formatMessageTimestamp(Timestamp? timestamp) {
+    if (timestamp == null) return '';
+    final date = timestamp.toDate();
+    final now = DateTime.now();
+    final diff = now.difference(date);
+
+    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    if (date.day == now.day && date.month == now.month && date.year == now.year) {
+      return DateFormat.jm().format(date);
+    }
+    if (date.year == now.year) {
+      return DateFormat('MMM d, h:mm a').format(date);
+    }
+    return DateFormat('MMM d y, h:mm a').format(date);
   }
 
   Future<void> _sendMessage() async {
@@ -112,8 +139,7 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     try {
-      // Get the user's actual name from Firestore
-      String senderName = 'User'; // Default fallback
+      String senderName = 'User';
       try {
         final userDoc = await _firestore
             .collection('users')
@@ -126,23 +152,20 @@ class _ChatScreenState extends State<ChatScreen> {
         }
       } catch (e) {
         debugPrint('Error getting user name: $e');
-        // Use fallback name
         senderName = currentUser.displayName?.trim() ?? 'User';
       }
 
-      // Add message
       await _firestore
           .collection('chats')
           .doc(widget.chatId)
           .collection('messages')
           .add({
         'senderId': currentUser.uid,
-        'senderName': senderName, // Use the correct name from Firestore
+        'senderName': senderName,
         'content': message,
         'timestamp': FieldValue.serverTimestamp(),
       });
 
-      // Update chat document
       await _firestore.collection('chats').doc(widget.chatId).update({
         'lastMessage': message,
         'lastMessageTime': FieldValue.serverTimestamp(),
@@ -152,7 +175,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
       _messageController.clear();
 
-      // Scroll to bottom after message is sent
       Future.delayed(const Duration(milliseconds: 300), () {
         if (mounted && _scrollController.hasClients) {
           _scrollController.animateTo(
@@ -184,48 +206,86 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: FutureBuilder<DocumentSnapshot>(
-          future: _firestore.collection('users').doc(widget.otherUserId).get(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return Text(
-                widget.otherUserName,
-                style: GoogleFonts.poppins(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-              );
-            }
-
-            final userData = snapshot.data?.data() as Map<String, dynamic>?;
-            final role = userData?['role'];
-            final verificationStatus = userData?['verificationStatus'];
-
-            return Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
+        title: GestureDetector(
+          onTap: () => _showUserProfile(),
+          child: FutureBuilder<DocumentSnapshot>(
+            future: _firestore.collection('users').doc(widget.otherUserId).get(),
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return Text(
                   widget.otherUserName,
                   style: GoogleFonts.poppins(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                   ),
-                ),
-                const SizedBox(width: 8),
-                VerificationBadge(
-                  role: role,
-                  verificationStatus: verificationStatus,
-                  size: 18,
-                ),
-              ],
-            );
-          },
+                );
+              }
+
+              final userData = snapshot.data?.data() as Map<String, dynamic>?;
+              final role = userData?['role'];
+              final verificationStatus = userData?['verificationStatus'];
+              final photoUrl = userData?['photoUrl'] ?? userData?['profile_image_url'] ?? '';
+
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 18,
+                    backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                    backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(51),
+                    child: photoUrl.isEmpty
+                        ? Text(
+                            widget.otherUserName.isNotEmpty
+                                ? widget.otherUserName[0].toUpperCase()
+                                : '?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                widget.otherUserName,
+                                style: GoogleFonts.poppins(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (role != null && verificationStatus != null)
+                              const SizedBox(width: 6),
+                            VerificationBadge(
+                              role: role,
+                              verificationStatus: verificationStatus,
+                              size: 16,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
         centerTitle: false,
       ),
       body: Column(
         children: [
-          // Messages list
           Expanded(
             child: _isNetworkError
                 ? Center(
@@ -248,7 +308,6 @@ class _ChatScreenState extends State<ChatScreen> {
                             setState(() {
                               _isNetworkError = false;
                             });
-                            // Attempt to reconnect
                             _markMessagesAsRead();
                           },
                           child: Text('Retry', style: GoogleFonts.poppins()),
@@ -269,7 +328,6 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
 
                       if (snapshot.hasError) {
-                        // Handle error state
                         _handleNetworkError();
                         return Center(
                           child: Column(
@@ -291,8 +349,11 @@ class _ChatScreenState extends State<ChatScreen> {
                       }
 
                       if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                        return const Center(
-                          child: Text('No messages yet. Start a conversation!'),
+                        return Center(
+                          child: Text(
+                            'No messages yet. Start a conversation!',
+                            style: GoogleFonts.poppins(),
+                          ),
                         );
                       }
 
@@ -310,23 +371,21 @@ class _ChatScreenState extends State<ChatScreen> {
                               messageData['senderId'] == _auth.currentUser?.uid;
                           final timestamp =
                               messageData['timestamp'] as Timestamp?;
-                          final formattedTime = timestamp != null
-                              ? DateFormat.jm().format(timestamp.toDate())
-                              : '';
 
                           return _MessageBubble(
                             message: messageData['content'] as String? ?? '',
                             isMe: isMe,
-                            time: formattedTime,
+                            timestamp: timestamp,
+                            formattedTime: _formatMessageTimestamp(timestamp),
                             senderName: messageData['senderName'] as String? ??
                                 'Unknown',
+                            senderPhotoUrl: isMe ? null : _otherUserPhotoUrl,
                           );
                         },
                       );
                     },
                   ),
           ),
-          // Message input
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
             decoration: BoxDecoration(
@@ -334,10 +393,7 @@ class _ChatScreenState extends State<ChatScreen> {
               boxShadow: [
                 BoxShadow(
                   color: Colors.grey.withValues(
-                      red: 128,
-                      green: 128,
-                      blue: 128,
-                      alpha: 26), // 0.1 opacity = 26 alpha
+                      red: 128, green: 128, blue: 128, alpha: 26),
                   blurRadius: 4.0,
                   offset: const Offset(0, -1),
                 ),
@@ -375,86 +431,187 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
+  void _showUserProfile() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => Container(
+        padding: const EdgeInsets.all(24),
+        child: FutureBuilder<DocumentSnapshot>(
+          future: _firestore.collection('users').doc(widget.otherUserId).get(),
+          builder: (context, snapshot) {
+            final data = snapshot.data?.data() as Map<String, dynamic>?;
+            final photoUrl = data?['photoUrl'] ?? data?['profile_image_url'] ?? '';
+            final role = data?['role'] as String?;
+            final name = NameUtils.extractName(data ?? {});
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundImage: photoUrl.isNotEmpty ? NetworkImage(photoUrl) : null,
+                  backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(51),
+                  child: photoUrl.isEmpty
+                      ? Text(
+                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                          style: GoogleFonts.poppins(
+                            fontSize: 32,
+                            fontWeight: FontWeight.bold,
+                            color: Theme.of(context).colorScheme.primary,
+                          ),
+                        )
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  name,
+                  style: GoogleFonts.poppins(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                if (role != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    role == 'professional' ? 'Professional' : 'Parent',
+                    style: GoogleFonts.poppins(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 }
 
 class _MessageBubble extends StatelessWidget {
   final String message;
   final bool isMe;
-  final String time;
+  final Timestamp? timestamp;
+  final String formattedTime;
   final String senderName;
+  final String? senderPhotoUrl;
 
   const _MessageBubble({
     required this.message,
     required this.isMe,
-    required this.time,
+    required this.timestamp,
+    required this.formattedTime,
     required this.senderName,
+    this.senderPhotoUrl,
   });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: EdgeInsets.only(
-        top: 4,
-        bottom: 4,
+        top: 6,
+        bottom: 6,
         left: isMe ? 64 : 0,
         right: isMe ? 0 : 64,
       ),
-      alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
       child: Column(
         crossAxisAlignment:
             isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
         children: [
           if (!isMe)
-            Text(
-              senderName,
-              style: GoogleFonts.poppins(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
+            Padding(
+              padding: const EdgeInsets.only(left: 12, bottom: 4),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircleAvatar(
+                    radius: 12,
+                    backgroundImage: senderPhotoUrl != null && senderPhotoUrl!.isNotEmpty
+                        ? NetworkImage(senderPhotoUrl!)
+                        : null,
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withAlpha(51),
+                    child: senderPhotoUrl == null || senderPhotoUrl!.isEmpty
+                        ? Text(
+                            senderName.isNotEmpty
+                                ? senderName[0].toUpperCase()
+                                : '?',
+                            style: GoogleFonts.poppins(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                          )
+                        : null,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    senderName,
+                    style: GoogleFonts.poppins(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
-              overflow: TextOverflow.ellipsis,
             ),
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-            decoration: BoxDecoration(
-              color: isMe
-                  ? Theme.of(context).colorScheme.primary
-                  : Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  message,
-                  style: TextStyle(
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              if (isMe) const Spacer(),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+                  decoration: BoxDecoration(
                     color: isMe
-                        ? Theme.of(context).colorScheme.onPrimary
-                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.surfaceContainerHighest,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isMe ? 20 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 20),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        message,
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: isMe
+                              ? Theme.of(context).colorScheme.onPrimary
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        formattedTime,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: isMe
+                              ? Theme.of(context).colorScheme.onPrimary.withValues(
+                                  red: 255, green: 255, blue: 255, alpha: 153)
+                              : Theme.of(context).colorScheme.onSurfaceVariant.withValues(
+                                  red: 128, green: 128, blue: 128, alpha: 153),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  time,
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: isMe
-                        ? Theme.of(context).colorScheme.onPrimary.withValues(
-                            red: 128,
-                            green: 128,
-                            blue: 128,
-                            alpha: 51) // 0.2 opacity = 51 alpha
-                        : Theme.of(context)
-                            .colorScheme
-                            .onSurfaceVariant
-                            .withValues(
-                                red: 128,
-                                green: 128,
-                                blue: 128,
-                                alpha: 51), // 0.2 opacity = 51 alpha
-                  ),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
         ],
       ),
