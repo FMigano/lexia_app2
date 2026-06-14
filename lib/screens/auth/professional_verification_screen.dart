@@ -140,7 +140,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
               // Role Selection
               DropdownButtonFormField<String>(
-                initialValue: _selectedRole,
+                value: _selectedRole,
                 decoration: const InputDecoration(
                   labelText: 'Select Role *',
                   border: OutlineInputBorder(),
@@ -339,13 +339,13 @@ class _ProfessionalVerificationScreenState extends State<ProfessionalVerificatio
 
   Future<void> _pickDocument() async {
     try {
-      FilePickerResult? result = await FilePicker.platform.pickFiles(
+      FilePickerResult? result = await FilePicker.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'doc', 'docx'],
         allowMultiple: false,
       );
 
-      if (result != null && result.files.isNotEmpty) {
+      if (result!.files.isNotEmpty) {
         setState(() {
           _verificationDocument = result.files.first;
           _uploadedFileName = result.files.first.name;
@@ -536,7 +536,7 @@ class _ProfessionalVerificationScreenState extends State<ProfessionalVerificatio
 
               // Profession Dropdown
               DropdownButtonFormField<String>(
-                initialValue: _selectedProfession,
+                value: _selectedProfession,
                 decoration: const InputDecoration(
                   labelText: 'Profession/Title *',
                   prefixIcon: Icon(Icons.work),

@@ -33,42 +33,42 @@ class DefaultFirebaseOptions {
     }
   }
 
-  // Web configuration for new project
+  // Web configuration for the current Firebase project.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
-    appId: '1:77421098859:web:NEED_WEB_APP_ID', // You'll need to create a web app
-    messagingSenderId: '77421098859',
-    projectId: 'gamedevcapz',
-    authDomain: 'gamedevcapz.firebaseapp.com',
-    storageBucket: 'gamedevcapz.firebasestorage.app',
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:web:NEED_WEB_APP_ID',
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    authDomain: 'lexiadyslexia.firebaseapp.com',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
   );
 
-  // Android configuration with new project values
+  // Android configuration.
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
-    appId: '1:77421098859:android:92122dc5011fb1777bfe2e',
-    messagingSenderId: '77421098859',
-    projectId: 'gamedevcapz',
-    storageBucket: 'gamedevcapz.firebasestorage.app',
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:android:9fcc467cd7d768523c2186',
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
   );
 
-  // iOS configuration - you'll need to add iOS app to Firebase
+  // iOS configuration.
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
-    appId: '1:77421098859:ios:NEED_IOS_APP_ID', // You'll need to create an iOS app
-    messagingSenderId: '77421098859',
-    projectId: 'gamedevcapz',
-    storageBucket: 'gamedevcapz.firebasestorage.app',
-    iosBundleId: 'com.vaultech.lexia',
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:ios:NEED_IOS_APP_ID',
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
+    iosBundleId: 'com.vaulttech.lexiadyslexia',
   );
 
-  // macOS configuration
+  // macOS configuration.
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo',
-    appId: '1:77421098859:ios:NEED_MACOS_APP_ID', // You'll need to create a macOS app
-    messagingSenderId: '77421098859',
-    projectId: 'gamedevcapz',
-    storageBucket: 'gamedevcapz.firebasestorage.app',
-    iosBundleId: 'com.vaultech.lexia',
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:ios:NEED_MACOS_APP_ID',
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
+    iosBundleId: 'com.vaulttech.lexiadyslexia',
   );
 }

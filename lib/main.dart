@@ -75,10 +75,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
         appBarTheme: AppBarTheme(
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
           titleTextStyle: TextStyle(
             fontFamily: GoogleFonts.poppins().fontFamily,
             fontSize: 20,
             fontWeight: FontWeight.w500,
+            color: Colors.black87,
           ),
         ),
       ),
@@ -104,10 +110,16 @@ class MyApp extends StatelessWidget {
           ),
         ),
         appBarTheme: AppBarTheme(
+          elevation: 0,
+          scrolledUnderElevation: 1,
+          surfaceTintColor: Colors.transparent,
+          backgroundColor: const Color(0xFF1E1E1E),
+          foregroundColor: Colors.white,
           titleTextStyle: TextStyle(
             fontFamily: GoogleFonts.poppins().fontFamily,
             fontSize: 20,
             fontWeight: FontWeight.w500,
+            color: Colors.white,
           ),
         ),
       ),

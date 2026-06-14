@@ -84,7 +84,7 @@ class _ProfessionalsScreenState extends State<ProfessionalsScreen> {
                           ? LinearGradient(
                               colors: [
                                 _getSpecialtyColor(specialty),
-                                _getSpecialtyColor(specialty).withOpacity(0.8),
+                                _getSpecialtyColor(specialty).withValues(alpha: 0.8),
                               ],
                             )
                           : null,

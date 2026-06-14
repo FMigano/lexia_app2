@@ -351,11 +351,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
             children: [
               Icon(Icons.verified_user, color: Colors.blue.shade700),
               const SizedBox(width: 8),
-              Text(
-                'Professional Verification Required',
-                style: GoogleFonts.poppins(
-                  fontWeight: FontWeight.w600,
-                  color: Colors.blue.shade700,
+              Expanded(
+                child: Text(
+                  'Professional Verification Required',
+                  style: GoogleFonts.poppins(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.blue.shade700,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 2,
                 ),
               ),
             ],

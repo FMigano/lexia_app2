@@ -181,10 +181,10 @@ class _AppointmentsScreenState extends State<AppointmentsScreen> {
       ),
       selected: isSelected,
       selectedColor: color,
-      backgroundColor: color.withOpacity(0.15),
+      backgroundColor: color.withValues(alpha: 0.15),
       checkmarkColor: Colors.white,
       side: BorderSide(
-        color: isSelected ? color : color.withOpacity(0.3),
+        color: isSelected ? color : color.withValues(alpha: 0.3),
         width: 1.5,
       ),
       onSelected: (selected) {
@@ -461,7 +461,7 @@ class _AppointmentCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color),
       ),

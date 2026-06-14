@@ -82,7 +82,7 @@ class ProfessionalDetailScreen extends StatelessWidget {
                     gradient: LinearGradient(
                       colors: [
                         _getProfessionColor(profession),
-                        _getProfessionColor(profession).withOpacity(0.8),
+                        _getProfessionColor(profession).withValues(alpha: 0.8),
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -149,7 +149,7 @@ class ProfessionalDetailScreen extends StatelessWidget {
                         userData['email'] ?? '',
                         style: GoogleFonts.poppins(
                           fontSize: 16,
-                          color: Colors.white.withOpacity(0.9),
+                          color: Colors.white.withValues(alpha: 0.9),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -161,10 +161,10 @@ class ProfessionalDetailScreen extends StatelessWidget {
                           vertical: 8,
                         ),
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
+                          color: Colors.white.withValues(alpha: 0.2),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.3),
+                            color: Colors.white.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -261,9 +261,9 @@ class ProfessionalDetailScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -294,13 +294,13 @@ class ProfessionalDetailScreen extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color: isVerified 
-                  ? Colors.green.withOpacity(0.05)
-                  : Colors.grey.withOpacity(0.1),
+                  ? Colors.green.withValues(alpha: 0.05)
+                  : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
                 color: isVerified 
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.3),
+                    ? Colors.green.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -353,7 +353,7 @@ class ProfessionalDetailScreen extends StatelessWidget {
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: Colors.grey.withOpacity(0.3),
+                color: Colors.grey.withValues(alpha: 0.3),
               ),
             ),
             child: Text(

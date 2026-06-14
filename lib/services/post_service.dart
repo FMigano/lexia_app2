@@ -138,7 +138,7 @@ class PostService {
         'commentCount': FieldValue.increment(1), // Count replies as comments too
       });
     } catch (e) {
-      print('Error in addReply: $e');
+      debugPrint('Error in addReply: $e');
       rethrow;
     }
   }

@@ -101,15 +101,13 @@ class AuthProvider with ChangeNotifier {
         userCredential = await _auth.signInWithPopup(googleProvider);
       } else {
         // Mobile implementation
-        final GoogleSignIn googleSignIn = GoogleSignIn();
-        final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
-        if (googleUser == null) return false;
+        final GoogleSignIn googleSignIn = GoogleSignIn.instance;
+        final GoogleSignInAccount googleUser =
+            await googleSignIn.authenticate();
 
         final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+            googleUser.authentication;
         final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
           idToken: googleAuth.idToken,
         );
         userCredential = await _auth.signInWithCredential(credential);

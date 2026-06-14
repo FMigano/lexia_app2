@@ -365,7 +365,7 @@ class _GoogleRegistrationScreenState extends State<GoogleRegistrationScreen> {
                         ? null
                         : () async {
                             await FirebaseAuth.instance.signOut();
-                            if (mounted) {
+                            if (context.mounted) {
                               Navigator.of(context).popUntil((route) => route.isFirst);
                             }
                           },

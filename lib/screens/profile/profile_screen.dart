@@ -28,7 +28,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FirebaseStorage _storage = FirebaseStorage.instance;
 
   bool _isLoading = false;
-  bool _notificationsEnabled = true; // Add this to your _ProfileScreenState class
+  bool _notificationsEnabled =
+      true; // Add this to your _ProfileScreenState class
 
   @override
   void initState() {
@@ -37,9 +38,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _loadNotificationPreference() async {
-    final doc = await _firestore.collection('users').doc(_auth.currentUser!.uid).get();
+    final doc =
+        await _firestore.collection('users').doc(_auth.currentUser!.uid).get();
     final userData = doc.data();
-    
+
     setState(() {
       _notificationsEnabled = userData?['notificationsEnabled'] ?? true;
     });
@@ -201,9 +203,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           margin: const EdgeInsets.symmetric(vertical: 8),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: statusColor.withOpacity(0.1),
+            color: statusColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: statusColor.withOpacity(0.3)),
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
           ),
           child: Row(
             children: [
@@ -264,7 +266,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : StreamBuilder<DocumentSnapshot>(
-              stream: _firestore.collection('users').doc(currentUser.uid).snapshots(),
+              stream: _firestore
+                  .collection('users')
+                  .doc(currentUser.uid)
+                  .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
@@ -280,7 +285,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
 
                 if (!snapshot.hasData || !snapshot.data!.exists) {
-                  print('❌ User document does not exist for UID: ${currentUser.uid}');
+                  debugPrint(
+                      '❌ User document does not exist for UID: ${currentUser.uid}');
+
                   return Center(
                     child: Text(
                       'User data not found',
@@ -290,26 +297,27 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 }
 
                 final userData = snapshot.data!.data() as Map<String, dynamic>;
-                
+
                 // ADD THESE DEBUG LINES
-                print('=== PROFILE DEBUG ===');
-                print('User UID: ${currentUser.uid}');
-                print('All user data: $userData');
-                print('Name field: ${userData['name']}');
-                print('Email field: ${userData['email']}');
-                print('Role field: ${userData['role']}');
-                print('====================');
-                
+                debugPrint('=== PROFILE DEBUG ===');
+                debugPrint('User UID: ${currentUser.uid}');
+                debugPrint('All user data: $userData');
+                debugPrint('Name field: ${userData['name']}');
+                debugPrint('Email field: ${userData['email']}');
+                debugPrint('Role field: ${userData['role']}');
+                debugPrint('====================');
+
                 // FIX THE NAME READING - this is the key fix
-                final name = userData['name']?.toString().trim() ?? 
-                             userData['fullName']?.toString().trim() ?? 
-                             currentUser.displayName?.trim() ?? 
-                             'User';
-                
-                final email = userData['email'] ?? currentUser.email ?? 'No email';
+                final name = userData['name']?.toString().trim() ??
+                    userData['fullName']?.toString().trim() ??
+                    currentUser.displayName?.trim() ??
+                    'User';
+
+                final email =
+                    userData['email'] ?? currentUser.email ?? 'No email';
                 final role = userData['role'] ?? 'Unknown';
                 final verificationStatus = userData['verificationStatus'];
-                
+
                 return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -324,7 +332,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             end: Alignment.bottomRight,
                             colors: [
                               Theme.of(context).colorScheme.primary,
-                              Theme.of(context).colorScheme.primary.withAlpha(204),
+                              Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withAlpha(204),
                             ],
                           ),
                           borderRadius: BorderRadius.circular(20),
@@ -341,11 +352,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   backgroundColor: Colors.white,
                                   child: currentUser.photoURL == null
                                       ? Text(
-                                          name.isNotEmpty ? name[0].toUpperCase() : '?',
+                                          name.isNotEmpty
+                                              ? name[0].toUpperCase()
+                                              : '?',
                                           style: GoogleFonts.poppins(
                                             fontSize: 32,
                                             fontWeight: FontWeight.bold,
-                                            color: Theme.of(context).colorScheme.primary,
+                                            color: Theme.of(context)
+                                                .colorScheme
+                                                .primary,
                                           ),
                                         )
                                       : null,
@@ -355,11 +370,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   right: 0,
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).colorScheme.secondary,
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .secondary,
                                       shape: BoxShape.circle,
                                     ),
                                     child: IconButton(
-                                      icon: const Icon(Icons.camera_alt, color: Colors.white),
+                                      icon: const Icon(Icons.camera_alt,
+                                          color: Colors.white),
                                       onPressed: _uploadProfilePicture,
                                       constraints: const BoxConstraints(
                                         minWidth: 36,
@@ -390,11 +408,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                             const SizedBox(height: 12),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 6),
                               decoration: BoxDecoration(
                                 color: Colors.white.withAlpha(51),
                                 borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: Colors.white.withAlpha(128)),
+                                border: Border.all(
+                                    color: Colors.white.withAlpha(128)),
                               ),
                               child: Text(
                                 role.toUpperCase(),
@@ -421,7 +441,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.outline.withAlpha(76),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outline
+                                  .withAlpha(76),
                             ),
                           ),
                           child: Column(
@@ -432,24 +455,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               _EditableField(
                                 label: 'Child Name',
                                 value: userData['childName'] ?? 'Not set',
-                                onEdit: () => _editField('childName', userData['childName'] ?? ''),
+                                onEdit: () => _editField(
+                                    'childName', userData['childName'] ?? ''),
                               ),
                               _EditableField(
                                 label: 'Child Age',
-                                value: userData['childAge']?.toString() ?? 'Not set',
-                                onEdit: () => _editField('childAge', userData['childAge']?.toString() ?? ''),
+                                value: userData['childAge']?.toString() ??
+                                    'Not set',
+                                onEdit: () => _editField('childAge',
+                                    userData['childAge']?.toString() ?? ''),
                               ),
                               _EditableField(
                                 label: 'Notes',
                                 value: userData['notes'] ?? 'No notes added',
-                                onEdit: () => _editField('notes', userData['notes'] ?? ''),
+                                onEdit: () => _editField(
+                                    'notes', userData['notes'] ?? ''),
                               ),
                             ],
                           ),
@@ -463,7 +491,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: Theme.of(context).colorScheme.surface,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: Theme.of(context).colorScheme.outline.withAlpha(76),
+                              color: Theme.of(context)
+                                  .colorScheme
+                                  .outline
+                                  .withAlpha(76),
                             ),
                           ),
                           child: Column(
@@ -474,25 +505,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 style: GoogleFonts.poppins(
                                   fontSize: 18,
                                   fontWeight: FontWeight.w600,
-                                  color: Theme.of(context).colorScheme.onSurface,
+                                  color:
+                                      Theme.of(context).colorScheme.onSurface,
                                 ),
                               ),
                               const SizedBox(height: 16),
                               // Locked Profession field (read-only for verified professionals)
                               _LockedField(
                                 label: 'Profession',
-                                value: userData['profession'] ?? userData['specialty'] ?? 'Not verified',
-                                isVerified: userData['verificationStatus'] == 'verified',
+                                value: userData['profession'] ??
+                                    userData['specialty'] ??
+                                    'Not verified',
+                                isVerified: userData['verificationStatus'] ==
+                                    'verified',
                               ),
                               _EditableField(
                                 label: 'Experience (years)',
-                                value: userData['experience']?.toString() ?? 'Not set',
-                                onEdit: () => _editField('experience', userData['experience']?.toString() ?? ''),
+                                value: userData['experience']?.toString() ??
+                                    'Not set',
+                                onEdit: () => _editField('experience',
+                                    userData['experience']?.toString() ?? ''),
                               ),
                               _EditableField(
                                 label: 'About',
-                                value: userData['about'] ?? 'No information provided',
-                                onEdit: () => _editField('about', userData['about'] ?? ''),
+                                value: userData['about'] ??
+                                    'No information provided',
+                                onEdit: () => _editField(
+                                    'about', userData['about'] ?? ''),
                               ),
                             ],
                           ),
@@ -502,7 +541,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       const SizedBox(height: 24),
 
                       // Verification Status
-                      if (userData['role'] == 'professional') _buildVerificationStatus(),
+                      if (userData['role'] == 'professional')
+                        _buildVerificationStatus(),
 
                       // Preferences Section
                       Container(
@@ -512,7 +552,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           color: Theme.of(context).colorScheme.surface,
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: Theme.of(context).colorScheme.outline.withAlpha(76),
+                            color: Theme.of(context)
+                                .colorScheme
+                                .outline
+                                .withAlpha(76),
                           ),
                         ),
                         child: Column(
@@ -527,7 +570,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
                             const SizedBox(height: 16),
-                            
+
                             // Dark Theme Toggle
                             Row(
                               children: [
@@ -538,7 +581,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Dark Theme',
@@ -565,9 +609,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Notifications Toggle
                             Row(
                               children: [
@@ -578,7 +622,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Notifications',
@@ -598,22 +643,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ),
                                 Switch(
-                                  value: _notificationsEnabled, // Use actual state
+                                  value:
+                                      _notificationsEnabled, // Use actual state
                                   onChanged: (value) async {
                                     setState(() {
                                       _notificationsEnabled = value;
                                     });
-                                    
+
                                     // Save to Firestore
-                                    await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
+                                    await _firestore
+                                        .collection('users')
+                                        .doc(_auth.currentUser!.uid)
+                                        .update({
                                       'notificationsEnabled': value,
                                     });
-                                    
+
                                     // Show feedback
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(
                                         content: Text(
-                                          value ? 'Notifications enabled' : 'Notifications disabled',
+                                          value
+                                              ? 'Notifications enabled'
+                                              : 'Notifications disabled',
                                           style: GoogleFonts.poppins(),
                                         ),
                                       ),
@@ -622,9 +673,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 ),
                               ],
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Terms & Conditions
                             ListTile(
                               contentPadding: EdgeInsets.zero,
@@ -644,7 +695,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
-                                    builder: (context) => const TermsAndConditionsScreen(),
+                                    builder: (context) =>
+                                        const TermsAndConditionsScreen(),
                                   ),
                                 );
                               },
@@ -731,7 +783,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           TextButton(
             onPressed: () => Navigator.of(context).pop(controller.text),
-            child: Text('Save', style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
+            child: Text('Save',
+                style: GoogleFonts.poppins(fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -740,8 +793,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null && _auth.currentUser != null) {
       try {
         // Make sure you're using _parseFieldValue here:
-        await _firestore.collection('users').doc(_auth.currentUser!.uid).update({
-          field: _parseFieldValue(field, result), // This converts String to proper type
+        await _firestore
+            .collection('users')
+            .doc(_auth.currentUser!.uid)
+            .update({
+          field: _parseFieldValue(
+              field, result), // This converts String to proper type
         });
 
         if (mounted) {
@@ -752,7 +809,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error updating ${_getFieldLabel(field)}: $e')),
+            SnackBar(
+                content: Text('Error updating ${_getFieldLabel(field)}: $e')),
           );
         }
       }
@@ -888,11 +946,13 @@ class _LockedField extends StatelessWidget {
               if (isVerified) ...[
                 const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(0.1),
+                    color: Colors.green.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                    border:
+                        Border.all(color: Colors.green.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -922,14 +982,14 @@ class _LockedField extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color: isVerified 
-                  ? Colors.green.withOpacity(0.05)
-                  : Colors.grey.withOpacity(0.1),
+              color: isVerified
+                  ? Colors.green.withValues(alpha: 0.05)
+                  : Colors.grey.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
               border: Border.all(
-                color: isVerified 
-                    ? Colors.green.withOpacity(0.2)
-                    : Colors.grey.withOpacity(0.3),
+                color: isVerified
+                    ? Colors.green.withValues(alpha: 0.2)
+                    : Colors.grey.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -940,10 +1000,11 @@ class _LockedField extends StatelessWidget {
                     style: GoogleFonts.poppins(
                       fontSize: 16,
                       height: 1.4,
-                      color: isVerified 
+                      color: isVerified
                           ? Colors.green[800]
                           : Theme.of(context).colorScheme.onSurface,
-                      fontWeight: isVerified ? FontWeight.w500 : FontWeight.normal,
+                      fontWeight:
+                          isVerified ? FontWeight.w500 : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -962,16 +1023,18 @@ class _LockedField extends StatelessWidget {
 }
 
 // In your notification handler code (separate service):
-Future<void> sendNotificationToUser(String userId, String title, String body) async {
+Future<void> sendNotificationToUser(
+    String userId, String title, String body) async {
   // Check if user has notifications enabled
-  final userDoc = await FirebaseFirestore.instance.collection('users').doc(userId).get();
+  final userDoc =
+      await FirebaseFirestore.instance.collection('users').doc(userId).get();
   final notificationsEnabled = userDoc.data()?['notificationsEnabled'] ?? true;
-  
+
   if (!notificationsEnabled) {
-    print('User has notifications disabled - skipping');
+    debugPrint('User has notifications disabled - skipping');
     return;
   }
-  
+
   // Send the notification
   // ... FCM implementation
 }
