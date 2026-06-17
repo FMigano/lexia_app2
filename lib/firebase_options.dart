@@ -17,15 +17,9 @@ class DefaultFirebaseOptions {
       case TargetPlatform.macOS:
         return macos;
       case TargetPlatform.windows:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for windows - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return windows;
       case TargetPlatform.linux:
-        throw UnsupportedError(
-          'DefaultFirebaseOptions have not been configured for linux - '
-          'you can reconfigure this by running the FlutterFire CLI again.',
-        );
+        return linux;
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -34,28 +28,30 @@ class DefaultFirebaseOptions {
   }
 
   // Web configuration for the current Firebase project.
+  // NOTE: Get web app ID from Firebase Console > Project Settings > General > Your apps
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
-    appId: '1:635282071283:web:NEED_WEB_APP_ID',
+    appId: '1:635282071283:web:YOUR_WEB_APP_ID',  // TODO: Replace with actual Web App ID
     messagingSenderId: '635282071283',
     projectId: 'lexiadyslexia',
     authDomain: 'lexiadyslexia.firebaseapp.com',
     storageBucket: 'lexiadyslexia.firebasestorage.app',
   );
 
-  // Android configuration.
+  // Android configuration (from google-services.json).
   static const FirebaseOptions android = FirebaseOptions(
     apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
-    appId: '1:635282071283:android:9fcc467cd7d768523c2186',
+    appId: '1:635282071283:android:4efe845d654c739f3c2186',
     messagingSenderId: '635282071283',
     projectId: 'lexiadyslexia',
     storageBucket: 'lexiadyslexia.firebasestorage.app',
   );
 
   // iOS configuration.
+  // NOTE: Get iOS app ID from Firebase Console > Project Settings > General > Your apps
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
-    appId: '1:635282071283:ios:NEED_IOS_APP_ID',
+    appId: '1:635282071283:ios:YOUR_IOS_APP_ID',  // TODO: Replace with actual iOS App ID
     messagingSenderId: '635282071283',
     projectId: 'lexiadyslexia',
     storageBucket: 'lexiadyslexia.firebasestorage.app',
@@ -63,12 +59,33 @@ class DefaultFirebaseOptions {
   );
 
   // macOS configuration.
+  // NOTE: Get macOS app ID from Firebase Console > Project Settings > General > Your apps
   static const FirebaseOptions macos = FirebaseOptions(
     apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
-    appId: '1:635282071283:ios:NEED_MACOS_APP_ID',
+    appId: '1:635282071283:ios:YOUR_MACOS_APP_ID',  // TODO: Replace with actual macOS App ID
     messagingSenderId: '635282071283',
     projectId: 'lexiadyslexia',
     storageBucket: 'lexiadyslexia.firebasestorage.app',
     iosBundleId: 'com.vaulttech.lexiadyslexia',
+  );
+
+  // Windows configuration.
+  // NOTE: Register a Windows app in the Firebase Console first, then fill in the app ID.
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:windows:YOUR_WINDOWS_APP_ID',  // TODO: Register Windows app in Firebase Console
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
+  );
+
+  // Linux configuration.
+  // NOTE: Register a Linux app in the Firebase Console first, then fill in the app ID.
+  static const FirebaseOptions linux = FirebaseOptions(
+    apiKey: 'AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40',
+    appId: '1:635282071283:linux:YOUR_LINUX_APP_ID',  // TODO: Register Linux app in Firebase Console
+    messagingSenderId: '635282071283',
+    projectId: 'lexiadyslexia',
+    storageBucket: 'lexiadyslexia.firebasestorage.app',
   );
 }
