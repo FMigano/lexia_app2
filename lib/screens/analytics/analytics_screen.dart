@@ -155,7 +155,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _isSearching = false;
         });
 
-        if (context.mounted) {
+        if (mounted) {
           Navigator.of(context).pop();
         }
         return;
@@ -197,7 +197,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           _isSearching = false;
         });
 
-        if (context.mounted) {
+        if (mounted) {
           Navigator.of(context).pop();
         }
       } else {
@@ -557,7 +557,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         }
       }
 
-      if (context.mounted) {
+      if (mounted) {
         showDialog(
           context: context,
           builder: (context) => AlertDialog(
@@ -598,7 +598,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         );
       }
     } catch (e) {
-      if (context.mounted) {
+      if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to load users: $e')),
         );
@@ -763,7 +763,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     CircleAvatar(
                       radius: 25,
                       backgroundColor:
-                          _getAccuracyColor(_wordAccuracy).withOpacity(0.2),
+                          _getAccuracyColor(_wordAccuracy).withValues(alpha: 0.2),
                       child: Text(
                         '${_wordAccuracy.toStringAsFixed(1)}%',
                         style: GoogleFonts.poppins(
@@ -880,7 +880,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -911,7 +911,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(12.0),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -1199,7 +1199,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.2),
+        color: color.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Column(
@@ -1213,7 +1213,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 value,
                 style: GoogleFonts.poppins(
                   fontWeight: FontWeight.w600,
-                  color: color.withOpacity(0.8),
+                  color: color.withValues(alpha: 0.8),
                 ),
               ),
             ],
@@ -1467,7 +1467,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.purple.withOpacity(0.1),
+                      color: Colors.purple.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -1499,7 +1499,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withOpacity(0.1),
+                      color: Colors.amber.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -1531,7 +1531,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Column(
@@ -1610,7 +1610,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: Colors.blue.withOpacity(0.1),
+                  color: Colors.blue.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Column(
@@ -1695,9 +1695,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.blue.withOpacity(0.1),
+      color: Colors.blue.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.blue.withOpacity(0.3)),
+      border: Border.all(color: Colors.blue.withValues(alpha: 0.3)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1708,7 +1708,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.blue.withOpacity(0.2),
+                color: Colors.blue.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.abc, color: Colors.blue, size: 20),
@@ -1792,9 +1792,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.green.withOpacity(0.1),
+      color: Colors.green.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.green.withOpacity(0.3)),
+      border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1805,7 +1805,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.green.withOpacity(0.2),
+                color: Colors.green.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.quiz, color: Colors.green, size: 20),
@@ -1932,7 +1932,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 return Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: Colors.blue.withOpacity(0.1),
+                    color: Colors.blue.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Row(
@@ -2044,7 +2044,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -2076,7 +2076,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Column(
@@ -2114,9 +2114,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: color.withOpacity(0.3)),
+      border: Border.all(color: color.withValues(alpha: 0.3)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2126,7 +2126,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.2),
+                color: color.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 20),
@@ -2287,7 +2287,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         borderRadius: BorderRadius.circular(12), // Less rounded for more space
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 4,
             offset: const Offset(0, 2),
           ),
@@ -2312,9 +2312,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -2515,9 +2515,9 @@ Widget _buildReadAloudModuleCard(Map<String, dynamic> modules) {
   return Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: Colors.purple.withOpacity(0.1),
+      color: Colors.purple.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: Colors.purple.withOpacity(0.3)),
+      border: Border.all(color: Colors.purple.withValues(alpha: 0.3)),
     ),
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -2528,7 +2528,7 @@ Widget _buildReadAloudModuleCard(Map<String, dynamic> modules) {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.purple.withOpacity(0.2),
+                color: Colors.purple.withValues(alpha: 0.2),
                 shape: BoxShape.circle,
               ),
               child: Icon(Icons.record_voice_over, color: Colors.purple, size: 20),
@@ -2612,9 +2612,9 @@ Widget _buildSubModuleRow(String title, num progress, int completed, int max, Ic
   return Container(
     padding: const EdgeInsets.all(8),
     decoration: BoxDecoration(
-      color: color.withOpacity(0.05),
+      color: color.withValues(alpha: 0.05),
       borderRadius: BorderRadius.circular(6),
-      border: Border.all(color: color.withOpacity(0.2)),
+      border: Border.all(color: color.withValues(alpha: 0.2)),
     ),
     child: Row(
       children: [

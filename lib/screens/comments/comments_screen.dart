@@ -66,18 +66,21 @@ class _CommentsScreenState extends State<CommentsScreen> {
       // Get the user's actual name from Firestore
       String authorName = 'User'; // Default fallback
       String authorPhotoUrl = '';
-      
+
       try {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser.uid)
             .get();
-        
+
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           // Use the NameUtils to get the proper name
           authorName = NameUtils.extractName(userData, user: currentUser);
-          authorPhotoUrl = userData['photoUrl'] ?? userData['profile_image_url'] ?? currentUser.photoURL ?? '';
+          authorPhotoUrl = userData['photoUrl'] ??
+              userData['profile_image_url'] ??
+              currentUser.photoURL ??
+              '';
         }
       } catch (e) {
         debugPrint('Error getting user name: $e');
@@ -88,8 +91,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
       // Check if this is a reply
       if (_replyToCommentId != null) {
-        print('Sending reply to comment: $_replyToCommentId');
-        
+        debugPrint('Sending reply to comment: $_replyToCommentId');
+
         // Add reply to the specific comment's replies subcollection
         await FirebaseFirestore.instance
             .collection('posts')
@@ -105,11 +108,11 @@ class _CommentsScreenState extends State<CommentsScreen> {
           'createdAt': FieldValue.serverTimestamp(),
           'parentCommentId': _replyToCommentId, // Track parent comment
         });
-        
-        print('Reply sent successfully');
+
+        debugPrint('Reply sent successfully');
       } else {
-        print('Sending new comment');
-        
+        debugPrint('Sending new comment');
+
         // Add the comment with the correct author name
         await FirebaseFirestore.instance
             .collection('posts')
@@ -130,8 +133,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
             .update({
           'commentCount': FieldValue.increment(1),
         });
-        
-        print('Comment sent successfully');
+
+        debugPrint('Comment sent successfully');
       }
 
       _commentController.clear();
@@ -153,9 +156,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
           ),
         );
       }
-      
     } catch (e) {
-      print('Error sending comment: $e');
+      debugPrint('Error sending comment: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -194,18 +196,21 @@ class _CommentsScreenState extends State<CommentsScreen> {
       // Get the user's actual name from Firestore
       String authorName = 'User'; // Default fallback
       String authorPhotoUrl = '';
-      
+
       try {
         final userDoc = await FirebaseFirestore.instance
             .collection('users')
             .doc(currentUser.uid)
             .get();
-        
+
         if (userDoc.exists) {
           final userData = userDoc.data() as Map<String, dynamic>;
           // Use the NameUtils to get the proper name
           authorName = NameUtils.extractName(userData, user: currentUser);
-          authorPhotoUrl = userData['photoUrl'] ?? userData['profile_image_url'] ?? currentUser.photoURL ?? '';
+          authorPhotoUrl = userData['photoUrl'] ??
+              userData['profile_image_url'] ??
+              currentUser.photoURL ??
+              '';
         }
       } catch (e) {
         debugPrint('Error getting user name: $e');
@@ -321,14 +326,17 @@ class _CommentsScreenState extends State<CommentsScreen> {
 
                 if (snapshot.hasError) {
                   // Handle index error specifically
-                  if (snapshot.error.toString().contains('failed-precondition')) {
+                  if (snapshot.error
+                      .toString()
+                      .contains('failed-precondition')) {
                     return Center(
                       child: Padding(
                         padding: const EdgeInsets.all(16.0),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.sync, color: Colors.orange, size: 48),
+                            const Icon(Icons.sync,
+                                color: Colors.orange, size: 48),
                             const SizedBox(height: 16),
                             Text(
                               'Setting up comments...',
@@ -339,7 +347,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 32),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 32),
                               child: Text(
                                 'We\'re creating the necessary database indexes. This usually takes a minute when first using the app.',
                                 textAlign: TextAlign.center,
@@ -355,14 +364,15 @@ class _CommentsScreenState extends State<CommentsScreen> {
                                 // Force refresh the stream builder
                                 setState(() {});
                               },
-                              child: Text('Retry', style: GoogleFonts.poppins()),
+                              child:
+                                  Text('Retry', style: GoogleFonts.poppins()),
                             ),
                           ],
                         ),
                       ),
                     );
                   }
-                  
+
                   // Regular error display
                   return Center(
                     child: Padding(
@@ -370,7 +380,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Icon(Icons.error_outline, size: 48, color: Colors.red),
+                          const Icon(Icons.error_outline,
+                              size: 48, color: Colors.red),
                           const SizedBox(height: 16),
                           Text(
                             'Something went wrong',
@@ -414,14 +425,14 @@ class _CommentsScreenState extends State<CommentsScreen> {
                 comments.sort((a, b) {
                   final aData = a.data() as Map<String, dynamic>;
                   final bData = b.data() as Map<String, dynamic>;
-                  
+
                   final aTime = aData['createdAt'];
                   final bTime = bData['createdAt'];
-                  
+
                   if (aTime == null && bTime == null) return 0;
                   if (aTime == null) return 1;
                   if (bTime == null) return -1;
-                  
+
                   return (aTime as Timestamp).compareTo(bTime as Timestamp);
                 });
 
@@ -435,7 +446,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
                           Icon(
                             Icons.chat_bubble_outline,
                             size: 72,
-                            color: Colors.grey.withOpacity(0.5),
+                            color: Colors.grey.withValues(alpha: 0.5),
                           ),
                           const SizedBox(height: 16),
                           Text(
@@ -474,22 +485,26 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   itemCount: comments.length,
                   separatorBuilder: (context, index) => Divider(
                     height: 24,
-                    color: Theme.of(context).brightness == Brightness.dark 
-                        ? Colors.grey.shade800 
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.grey.shade800
                         : Colors.grey.shade300,
                   ),
                   itemBuilder: (context, index) {
-                    final comment = comments[index].data() as Map<String, dynamic>;
+                    final comment =
+                        comments[index].data() as Map<String, dynamic>;
                     final commentId = comments[index].id;
-                    final isCurrentUserComment = FirebaseAuth.instance.currentUser != null &&
-                        comment['authorId'] == FirebaseAuth.instance.currentUser!.uid;
+                    final isCurrentUserComment =
+                        FirebaseAuth.instance.currentUser != null &&
+                            comment['authorId'] ==
+                                FirebaseAuth.instance.currentUser!.uid;
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         // Main comment
-                        _buildCommentWidget(comment, commentId, isCurrentUserComment, false, null),
-                        
+                        _buildCommentWidget(comment, commentId,
+                            isCurrentUserComment, false, null),
+
                         // Replies for this comment
                         StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
@@ -501,7 +516,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               .orderBy('createdAt', descending: false)
                               .snapshots(),
                           builder: (context, replySnapshot) {
-                            if (!replySnapshot.hasData || replySnapshot.data!.docs.isEmpty) {
+                            if (!replySnapshot.hasData ||
+                                replySnapshot.data!.docs.isEmpty) {
                               return const SizedBox.shrink();
                             }
 
@@ -512,27 +528,40 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: replies.map((reply) {
-                                  final replyData = reply.data() as Map<String, dynamic>;
+                                  final replyData =
+                                      reply.data() as Map<String, dynamic>;
                                   final replyId = reply.id;
-                                  final isCurrentUserReply = FirebaseAuth.instance.currentUser != null &&
-                                      replyData['authorId'] == FirebaseAuth.instance.currentUser!.uid;
+                                  final isCurrentUserReply =
+                                      FirebaseAuth.instance.currentUser !=
+                                              null &&
+                                          replyData['authorId'] ==
+                                              FirebaseAuth
+                                                  .instance.currentUser!.uid;
 
                                   return Container(
                                     margin: const EdgeInsets.only(bottom: 8),
                                     padding: const EdgeInsets.all(12),
                                     decoration: BoxDecoration(
-                                      color: Theme.of(context).brightness == Brightness.dark
-                                          ? Colors.grey.shade900.withOpacity(0.5)
+                                      color: Theme.of(context).brightness ==
+                                              Brightness.dark
+                                          ? Colors.grey.shade900
+                                              .withValues(alpha: 0.5)
                                           : Colors.grey.shade100,
                                       borderRadius: BorderRadius.circular(12),
                                       border: Border.all(
-                                        color: Theme.of(context).brightness == Brightness.dark
+                                        color: Theme.of(context).brightness ==
+                                                Brightness.dark
                                             ? Colors.grey.shade800
                                             : Colors.grey.shade300,
                                         width: 1,
                                       ),
                                     ),
-                                    child: _buildCommentWidget(replyData, replyId, isCurrentUserReply, true, commentId), // Pass parent comment ID
+                                    child: _buildCommentWidget(
+                                        replyData,
+                                        replyId,
+                                        isCurrentUserReply,
+                                        true,
+                                        commentId), // Pass parent comment ID
                                   );
                                 }).toList(),
                               ),
@@ -554,7 +583,7 @@ class _CommentsScreenState extends State<CommentsScreen> {
               color: isDarkMode ? Colors.grey.shade900 : Colors.grey.shade100,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 8,
                   offset: const Offset(0, -2),
                 ),
@@ -567,7 +596,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                   // Show reply indicator if replying to a comment
                   if (_replyToCommentId != null)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 6),
                       margin: const EdgeInsets.only(bottom: 8),
                       decoration: BoxDecoration(
                         color: isDarkMode
@@ -582,7 +612,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               text: TextSpan(
                                 style: GoogleFonts.poppins(
                                   fontSize: 13,
-                                  color: isDarkMode ? Colors.white70 : Colors.black87,
+                                  color: isDarkMode
+                                      ? Colors.white70
+                                      : Colors.black87,
                                 ),
                                 children: [
                                   const TextSpan(text: 'Replying to '),
@@ -611,21 +643,27 @@ class _CommentsScreenState extends State<CommentsScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       CircleAvatar(
-                        backgroundImage:
-                            FirebaseAuth.instance.currentUser?.photoURL != null
-                                ? NetworkImage(
-                                    FirebaseAuth.instance.currentUser!.photoURL!)
-                                : null,
+                        backgroundImage: FirebaseAuth
+                                    .instance.currentUser?.photoURL !=
+                                null
+                            ? NetworkImage(
+                                FirebaseAuth.instance.currentUser!.photoURL!)
+                            : null,
                         radius: 16,
-                        backgroundColor: isDarkMode ? Colors.grey.shade800 : Colors.grey.shade300,
-                        child: FirebaseAuth.instance.currentUser?.photoURL == null
+                        backgroundColor: isDarkMode
+                            ? Colors.grey.shade800
+                            : Colors.grey.shade300,
+                        child: FirebaseAuth.instance.currentUser?.photoURL ==
+                                null
                             ? Text(
-                                (FirebaseAuth.instance.currentUser?.displayName ??
+                                (FirebaseAuth.instance.currentUser
+                                            ?.displayName ??
                                         '?')[0]
                                     .toUpperCase(),
                                 style: GoogleFonts.poppins(
                                   fontWeight: FontWeight.w500,
-                                  color: isDarkMode ? Colors.white : Colors.black,
+                                  color:
+                                      isDarkMode ? Colors.white : Colors.black,
                                 ),
                               )
                             : null,
@@ -647,7 +685,9 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               borderSide: BorderSide.none,
                             ),
                             filled: true,
-                            fillColor: isDarkMode ? Colors.grey.shade800.withOpacity(0.5) : Colors.white,
+                            fillColor: isDarkMode
+                                ? Colors.grey.shade800.withValues(alpha: 0.5)
+                                : Colors.white,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 16,
                               vertical: 10,
@@ -701,9 +741,10 @@ class _CommentsScreenState extends State<CommentsScreen> {
     );
   }
 
-  Widget _buildCommentWidget(Map<String, dynamic> commentData, String commentId, bool isCurrentUser, bool isReply, String? parentCommentId) {
+  Widget _buildCommentWidget(Map<String, dynamic> commentData, String commentId,
+      bool isCurrentUser, bool isReply, String? parentCommentId) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-    
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -722,19 +763,24 @@ class _CommentsScreenState extends State<CommentsScreen> {
             children: [
               // Author info with verification badge
               FutureBuilder<DocumentSnapshot>(
-                future: FirebaseFirestore.instance.collection('users').doc(commentData['authorId']).get(),
+                future: FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(commentData['authorId'])
+                    .get(),
                 builder: (context, userSnapshot) {
-                  final userData = userSnapshot.data?.data() as Map<String, dynamic>?;
+                  final userData =
+                      userSnapshot.data?.data() as Map<String, dynamic>?;
                   final role = userData?['role'];
                   final verificationStatus = userData?['verificationStatus'];
-                  
+
                   return Row(
                     children: [
                       CircleAvatar(
                         radius: 12,
-                        backgroundImage: commentData['authorPhotoUrl']?.isNotEmpty == true
-                            ? NetworkImage(commentData['authorPhotoUrl'])
-                            : null,
+                        backgroundImage:
+                            commentData['authorPhotoUrl']?.isNotEmpty == true
+                                ? NetworkImage(commentData['authorPhotoUrl'])
+                                : null,
                         child: commentData['authorPhotoUrl']?.isEmpty != false
                             ? Text(
                                 commentData['authorName']?.isNotEmpty == true
@@ -767,7 +813,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                       const Spacer(),
                       Text(
                         timeago.format(
-                          (commentData['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+                          (commentData['createdAt'] as Timestamp?)?.toDate() ??
+                              DateTime.now(),
                         ),
                         style: GoogleFonts.poppins(
                           fontSize: 11,
@@ -783,7 +830,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                               builder: (context) => AlertDialog(
                                 title: Text(
                                   'Delete Comment',
-                                  style: GoogleFonts.poppins(fontWeight: FontWeight.w600),
+                                  style: GoogleFonts.poppins(
+                                      fontWeight: FontWeight.w600),
                                 ),
                                 content: Text(
                                   'Are you sure you want to delete this comment?',
@@ -791,17 +839,20 @@ class _CommentsScreenState extends State<CommentsScreen> {
                                 ),
                                 actions: [
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, false),
+                                    onPressed: () =>
+                                        Navigator.pop(context, false),
                                     child: Text(
                                       'Cancel',
                                       style: GoogleFonts.poppins(),
                                     ),
                                   ),
                                   TextButton(
-                                    onPressed: () => Navigator.pop(context, true),
+                                    onPressed: () =>
+                                        Navigator.pop(context, true),
                                     child: Text(
                                       'Delete',
-                                      style: GoogleFonts.poppins(color: Colors.red),
+                                      style: GoogleFonts.poppins(
+                                          color: Colors.red),
                                     ),
                                   ),
                                 ],
@@ -816,7 +867,8 @@ class _CommentsScreenState extends State<CommentsScreen> {
                                   commentId,
                                 );
                               } else {
-                                await _postService.deleteComment(widget.postId, commentId);
+                                await _postService.deleteComment(
+                                    widget.postId, commentId);
                               }
                             }
                           },

@@ -153,7 +153,7 @@ class _TermsAndConditionsScreenState extends State<TermsAndConditionsScreen> {
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
-                      'By clicking "I Accept" below, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
+                      'By accepting, you acknowledge that you have read, understood, and agree to be bound by these Terms and Conditions.',
                       style: GoogleFonts.poppins(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,

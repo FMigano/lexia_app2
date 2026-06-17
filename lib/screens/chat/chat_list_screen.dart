@@ -133,8 +133,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
             itemBuilder: (context, index) {
               final chatDoc = chatDocs[index];
               final chatData = chatDoc.data() as Map<String, dynamic>;
-              final participants = List<String>.from(chatData['participants'] ?? []);
-              
+              final participants =
+                  List<String>.from(chatData['participants'] ?? []);
+
               // Find the other participant
               final otherParticipantId = participants.firstWhere(
                 (id) => id != currentUser.uid,
@@ -142,14 +143,18 @@ class _ChatListScreenState extends State<ChatListScreen> {
               );
 
               final lastMessage = chatData['lastMessage'] ?? '';
-              final lastMessageTime = (chatData['lastMessageTime'] as Timestamp?)?.toDate();
-              final unreadCount = (chatData['unreadCount'] as Map<String, dynamic>?)?[currentUser.uid] ?? 0;
+              final lastMessageTime =
+                  (chatData['lastMessageTime'] as Timestamp?)?.toDate();
+              final unreadCount = (chatData['unreadCount']
+                      as Map<String, dynamic>?)?[currentUser.uid] ??
+                  0;
 
               // Check if this is a self-chat
               final isSelfChat = otherParticipantId == currentUser.uid;
 
               if (isSelfChat) {
-                return _buildSelfChatTile(chatDoc, lastMessage, lastMessageTime);
+                return _buildSelfChatTile(
+                    chatDoc, lastMessage, lastMessageTime);
               }
 
               return FutureBuilder<DocumentSnapshot>(
@@ -162,9 +167,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                     return const SizedBox.shrink();
                   }
 
-                  final userData = userSnapshot.data!.data() as Map<String, dynamic>;
+                  final userData =
+                      userSnapshot.data!.data() as Map<String, dynamic>;
                   final name = NameUtils.extractName(userData);
-                  final photoUrl = userData['photoUrl'] ?? userData['profile_image_url'] ?? '';
+                  final photoUrl = userData['photoUrl'] ??
+                      userData['profile_image_url'] ??
+                      '';
                   final isProfessional = userData['role'] == 'professional';
 
                   return _buildChatTile(
@@ -186,9 +194,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Widget _buildSelfChatTile(DocumentSnapshot chatDoc, String lastMessage, DateTime? lastMessageTime) {
+  Widget _buildSelfChatTile(
+      DocumentSnapshot chatDoc, String lastMessage, DateTime? lastMessageTime) {
     final currentUser = FirebaseAuth.instance.currentUser!;
-    
+
     return Card(
       elevation: 0,
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -210,69 +219,70 @@ class _ChatListScreenState extends State<ChatListScreen> {
             ),
           );
         },
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Row(
-              children: [
-                Container(
-                  width: 60,
-                  height: 60,
-                  margin: const EdgeInsets.only(right: 16),
-                  child: CircleAvatar(
-                    backgroundImage: currentUser.photoURL != null
-                        ? NetworkImage(currentUser.photoURL!)
-                        : null,
-                    backgroundColor: Colors.amber.withAlpha(51),
-                    child: currentUser.photoURL == null
-                        ? const Icon(Icons.note_alt, color: Colors.amber, size: 28)
-                        : null,
-                  ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Container(
+                width: 60,
+                height: 60,
+                margin: const EdgeInsets.only(right: 16),
+                child: CircleAvatar(
+                  backgroundImage: currentUser.photoURL != null
+                      ? NetworkImage(currentUser.photoURL!)
+                      : null,
+                  backgroundColor: Colors.amber.withAlpha(51),
+                  child: currentUser.photoURL == null
+                      ? const Icon(Icons.note_alt,
+                          color: Colors.amber, size: 28)
+                      : null,
                 ),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Notes to Self',
+                          style: GoogleFonts.poppins(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                        if (lastMessageTime != null)
                           Text(
-                            'Notes to Self',
+                            timeago.format(lastMessageTime, locale: 'en_short'),
                             style: GoogleFonts.poppins(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.amber.shade800,
+                              fontSize: 12,
+                              color: Colors.grey,
                             ),
                           ),
-                          if (lastMessageTime != null)
-                            Text(
-                              timeago.format(lastMessageTime, locale: 'en_short'),
-                              style: GoogleFonts.poppins(
-                                fontSize: 12,
-                                color: Colors.grey,
-                              ),
-                            ),
-                        ],
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      lastMessage.isEmpty ? 'No messages yet' : lastMessage,
+                      style: GoogleFonts.poppins(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        height: 1.3,
+                        color: Colors.grey.shade600,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        lastMessage.isEmpty ? 'No messages yet' : lastMessage,
-                        style: GoogleFonts.poppins(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w400,
-                          height: 1.3,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
-      );
+      ),
+    );
   }
 
   Widget _buildChatTile({
@@ -340,7 +350,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
       },
       onDismissed: (direction) async {
         try {
-          final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatDoc.id);
+          final chatRef =
+              FirebaseFirestore.instance.collection('chats').doc(chatDoc.id);
           final messagesSnapshot = await chatRef.collection('messages').get();
           final batch = FirebaseFirestore.instance.batch();
 
@@ -354,7 +365,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Conversation deleted', style: GoogleFonts.poppins()),
+                content:
+                    Text('Conversation deleted', style: GoogleFonts.poppins()),
                 backgroundColor: Colors.green,
               ),
             );
@@ -364,7 +376,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('Error deleting conversation', style: GoogleFonts.poppins()),
+                content: Text('Error deleting conversation',
+                    style: GoogleFonts.poppins()),
                 backgroundColor: Colors.red,
               ),
             );
@@ -411,9 +424,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       ),
                       child: photoUrl.isNotEmpty
-                          ? CircleAvatar(backgroundImage: NetworkImage(photoUrl))
+                          ? CircleAvatar(
+                              backgroundImage: NetworkImage(photoUrl))
                           : CircleAvatar(
-                              backgroundColor: Theme.of(context).colorScheme.primary.withAlpha(51),
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .primary
+                                  .withAlpha(51),
                               child: Text(
                                 name.isNotEmpty ? name[0].toUpperCase() : '?',
                                 style: GoogleFonts.poppins(
@@ -435,7 +452,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             shape: BoxShape.circle,
                             border: Border.all(color: Colors.white, width: 2),
                           ),
-                          child: const Icon(Icons.verified, color: Colors.white, size: 12),
+                          child: const Icon(Icons.verified,
+                              color: Colors.white, size: 12),
                         ),
                       ),
                   ],
@@ -458,8 +476,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           ),
                           if (lastMessageTime != null)
                             Text(
-                              timeago.format(lastMessageTime, locale: 'en_short'),
-                              style: GoogleFonts.poppins(fontSize: 12, color: Colors.grey),
+                              timeago.format(lastMessageTime,
+                                  locale: 'en_short'),
+                              style: GoogleFonts.poppins(
+                                  fontSize: 12, color: Colors.grey),
                             ),
                         ],
                       ),
@@ -468,10 +488,14 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         children: [
                           Expanded(
                             child: Text(
-                              lastMessage.isEmpty ? 'No messages yet' : lastMessage,
+                              lastMessage.isEmpty
+                                  ? 'No messages yet'
+                                  : lastMessage,
                               style: GoogleFonts.poppins(
                                 fontSize: 14,
-                                fontWeight: unreadCount > 0 ? FontWeight.w500 : FontWeight.w400,
+                                fontWeight: unreadCount > 0
+                                    ? FontWeight.w500
+                                    : FontWeight.w400,
                                 height: 1.3,
                                 color: unreadCount > 0
                                     ? Theme.of(context).colorScheme.primary
@@ -484,7 +508,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                           if (unreadCount > 0)
                             Container(
                               margin: const EdgeInsets.only(left: 8),
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
                               decoration: BoxDecoration(
                                 color: Theme.of(context).colorScheme.primary,
                                 borderRadius: BorderRadius.circular(12),
@@ -492,7 +517,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               child: Text(
                                 unreadCount.toString(),
                                 style: GoogleFonts.poppins(
-                                  color: Theme.of(context).colorScheme.onPrimary,
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -511,7 +537,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
     );
   }
 
-  Future<void> _deleteChat(BuildContext context, String chatId, String otherUserName) async {
+  Future<void> _deleteChat(
+      BuildContext context, String chatId, String otherUserName) async {
     final scaffoldMessenger = ScaffoldMessenger.of(context);
 
     final confirmed = await showDialog<bool>(
@@ -543,7 +570,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
     if (confirmed ?? false) {
       try {
-        final chatRef = FirebaseFirestore.instance.collection('chats').doc(chatId);
+        final chatRef =
+            FirebaseFirestore.instance.collection('chats').doc(chatId);
         final messagesSnapshot = await chatRef.collection('messages').get();
         final batch = FirebaseFirestore.instance.batch();
 
@@ -563,7 +591,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
       } catch (e) {
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Error deleting conversation', style: GoogleFonts.poppins()),
+            content: Text('Error deleting conversation',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.red,
           ),
         );
@@ -599,7 +628,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
             child: Text('Cancel', style: GoogleFonts.poppins()),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(emailController.text.trim()),
+            onPressed: () =>
+                Navigator.of(context).pop(emailController.text.trim()),
             child: Text('Search', style: GoogleFonts.poppins()),
           ),
         ],
@@ -638,6 +668,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
         for (final chatDoc in existingChatQuery.docs) {
           final participants = List<String>.from(chatDoc['participants']);
           if (participants.contains(userDoc.id)) {
+            // Check if the widget is still in the widget tree before navigating
+            if (!mounted) return;
+
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => ChatScreen(
@@ -674,7 +707,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
       } else {
         scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('No user found with email: $email', style: GoogleFonts.poppins()),
+            content: Text('No user found with email: $email',
+                style: GoogleFonts.poppins()),
             backgroundColor: Colors.orange,
           ),
         );
@@ -685,7 +719,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
 
       scaffoldMessenger.showSnackBar(
         SnackBar(
-          content: Text('Error searching for user', style: GoogleFonts.poppins()),
+          content:
+              Text('Error searching for user', style: GoogleFonts.poppins()),
           backgroundColor: Colors.red,
         ),
       );
@@ -707,6 +742,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
       for (final chatDoc in existingChatQuery.docs) {
         final participants = List<String>.from(chatDoc['participants']);
         if (participants.length == 1 && participants[0] == currentUser.uid) {
+          if (!mounted) return;
+
           Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => ChatScreen(

@@ -21,13 +21,13 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    
+
     // Quick fade and scale animation
     _controller = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 400),
     );
-
+  
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
@@ -111,91 +111,26 @@ class _SplashScreenState extends State<SplashScreen>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  // Community-themed logo
                   Container(
-                    width: 140,
-                    height: 140,
+                    width: 150,
+                    height: 150,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6C63FF).withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(32),
-                      border: Border.all(
-                        color: const Color(0xFF6C63FF).withOpacity(0.3),
-                        width: 2,
+                      borderRadius: BorderRadius.circular(16),
+                      image: const DecorationImage(
+                        image: AssetImage('assets/images/icon/parentpro_logo.png'),
+                        fit: BoxFit.contain,
                       ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: const Color(0xFF6C63FF).withOpacity(0.3),
-                          blurRadius: 30,
-                          spreadRadius: 5,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        // Overlapping circles representing community
-                        Positioned(
-                          left: 35,
-                          top: 30,
-                          child: Container(
-                            width: 35,
-                            height: 35,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C63FF).withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          right: 35,
-                          top: 30,
-                          child: Container(
-                            width: 35,
-                            height: 35,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C63FF).withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        Positioned(
-                          bottom: 35,
-                          child: Container(
-                            width: 35,
-                            height: 35,
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF6C63FF).withOpacity(0.6),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                        ),
-                        // Center icon - book/community hybrid
-                        Icon(
-                          Icons.people_alt_rounded,
-                          size: 70,
-                          color: const Color(0xFF6C63FF),
-                        ),
-                      ],
                     ),
                   ),
                   const SizedBox(height: 32),
-                  // App name with gradient
-                  ShaderMask(
-                    shaderCallback: (bounds) => const LinearGradient(
-                      colors: [
-                        Color(0xFF6C63FF),
-                        Color(0xFF4CAF50),
-                      ],
-                    ).createShader(bounds),
-                    child: Text(
-                      'Lexia',
-                      style: GoogleFonts.poppins(
-                        fontSize: 42,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 2,
-                      ),
+                  // App name
+                  Text(
+                    'Lexia',
+                    style: GoogleFonts.poppins(
+                      fontSize: 42,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF6C63FF),
+                      letterSpacing: 2,
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -203,7 +138,7 @@ class _SplashScreenState extends State<SplashScreen>
                     'Empowering Through Connection',
                     style: GoogleFonts.poppins(
                       fontSize: 14,
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                       letterSpacing: 0.5,
                     ),
                   ),
@@ -214,10 +149,10 @@ class _SplashScreenState extends State<SplashScreen>
                       vertical: 6,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF6C63FF).withOpacity(0.2),
+                      color: const Color(0xFF6C63FF).withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color(0xFF6C63FF).withOpacity(0.3),
+                        color: const Color(0xFF6C63FF).withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -233,7 +168,7 @@ class _SplashScreenState extends State<SplashScreen>
                           'Parents & Professionals Together',
                           style: GoogleFonts.poppins(
                             fontSize: 11,
-                            color: Colors.white.withOpacity(0.8),
+                            color: Colors.white.withValues(alpha: 0.8),
                             fontWeight: FontWeight.w500,
                           ),
                         ),

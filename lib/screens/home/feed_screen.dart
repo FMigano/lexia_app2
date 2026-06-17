@@ -318,6 +318,6 @@ class _FeedScreenState extends State<FeedScreen> {
   Color _getCategoryColorWithOpacity(String category, double opacity) {
     final Color baseColor = _getCategoryColor(category);
     return Color.fromRGBO(
-        baseColor.red, baseColor.green, baseColor.blue, opacity);
+        (baseColor.r * 255.0).toInt(), (baseColor.g * 255.0).toInt(), (baseColor.b * 255.0).toInt(), opacity);
   }
 }

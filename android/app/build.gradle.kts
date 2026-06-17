@@ -7,7 +7,7 @@ plugins {
 }
 
 android {
-    namespace = "com.vaultech.lexia"  // Changed to use = assignment for Kotlin DSL
+    namespace = "com.vaulttech.lexiadyslexia"  // Changed to use = assignment for Kotlin DSL
     compileSdk = flutter.compileSdkVersion
     ndkVersion = "27.0.12077973"  // Update NDK version to match plugins
 
@@ -21,10 +21,10 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.vaultech.lexia"
+        applicationId = "com.vaulttech.lexiadyslexia"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion  // Update to 23 for Firebase Auth compatibility
+        minSdk = 23  // Firebase Auth 23.2.1 requires minSdk 23
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName

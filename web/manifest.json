@@ -1,11 +1,11 @@
 {
-    "name": "lexia_app",
-    "short_name": "lexia_app",
+    "name": "Lexia",
+    "short_name": "Lexia",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#1a1a2e",
+    "theme_color": "#1a1a2e",
+    "description": "A social platform for parents and professionals to connect and share resources about dyslexia.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -61,7 +61,7 @@ class _PostCardState extends State<PostCard> {
       return Container(
         width: 100,
         height: 100,
-        color: Colors.red.withOpacity(0.3),
+        color: Colors.red.withValues(alpha: 0.3),
         child: const Center(child: Text("Test Failed")),
       );
     }
@@ -471,9 +471,10 @@ class _PostCardState extends State<PostCard> {
             }
           }
         }
-
+  
         if (mounted) {
           // Close loading dialog when done
+          if (!context.mounted) return;
           Navigator.of(context, rootNavigator: true).pop();
 
           // Show success message
@@ -488,6 +489,7 @@ class _PostCardState extends State<PostCard> {
       } catch (e, stackTrace) {
         // Close loading dialog on error
         if (mounted) {
+          if (!context.mounted) return;
           Navigator.of(context, rootNavigator: true).pop();
         }
 

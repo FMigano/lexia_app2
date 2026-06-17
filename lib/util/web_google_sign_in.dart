@@ -1,21 +1,21 @@
-// This is a stub implementation that matches the GoogleSignIn API structure but uses Firebase directly
-// It's only imported on web
-
-// Class to match the mobile GoogleSignIn API
+// Stub matching google_sign_in 7.x singleton API for web conditional import.
+// Not actually used — web uses Firebase auth directly.
 class GoogleSignIn {
-  Future<GoogleSignInAccount?> signIn() async {
-    // This is a stub - we use a different approach for web in the AuthProvider
-    return null;
+  GoogleSignIn._();
+  static final GoogleSignIn instance = GoogleSignIn._();
+
+  Future<GoogleSignInAccount> authenticate({List<String> scopeHint = const []}) async {
+    throw UnsupportedError('Use GoogleAuthProvider with Firebase auth directly on web');
   }
+
+  Future<void> signOut() async {}
 }
 
-// Stub classes to match mobile API
 class GoogleSignInAccount {
-  Future<GoogleSignInAuthentication> get authentication async =>
-      GoogleSignInAuthentication();
+  GoogleSignInAuthentication get authentication => GoogleSignInAuthentication(idToken: null);
 }
 
 class GoogleSignInAuthentication {
-  String? get accessToken => null;
-  String? get idToken => null;
+  const GoogleSignInAuthentication({this.idToken});
+  final String? idToken;
 }

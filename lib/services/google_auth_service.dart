@@ -24,26 +24,19 @@ class GoogleAuthResult {
 class GoogleAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   // Sign in with Google and check if user exists
   Future<GoogleAuthResult> signInWithGoogle() async {
     try {
       // Start the Google sign-in process
-      final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-      if (googleUser == null) {
-        // User canceled the sign-in
-        return GoogleAuthResult(
-          isNewUser: false,
-          errorMessage: 'Google sign-in was canceled',
-        );
-      }
+      final GoogleSignInAccount googleUser =
+          await _googleSignIn.authenticate();
 
       // Get authentication details
       final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+          googleUser.authentication;
       final OAuthCredential credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 

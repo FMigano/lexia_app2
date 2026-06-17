@@ -27,37 +27,41 @@ dependencies:
   flutter:
     sdk: flutter
   # Ensure we're using compatible versions
-  firebase_core: ^3.13.0
-  firebase_auth: ^5.5.2
-  cloud_firestore: ^5.6.6
-  firebase_storage: ^12.4.5
-  google_sign_in: ^6.1.6
+  firebase_core: ^4.10.0
+  firebase_auth: ^6.5.2
+  cloud_firestore: ^6.5.0
+  firebase_storage: ^13.4.2
+  google_sign_in: ^7.2.0
   provider: ^6.1.1
   image_picker: ^1.0.4
-  intl: ^0.19.0
+  intl: ^0.20.2
   timeago: ^3.6.0
   uuid: ^4.2.2
   cached_network_image: ^3.3.0
   cupertino_icons: ^1.0.6
-  google_fonts: ^6.2.1  # Add this line only
+  google_fonts: ^6.3.2  # Add this line only
   path: ^1.8.3  # Add this line
   flutter_image_compress: ^2.1.0  # Update to the latest version
-  file_picker: ^8.0.0+1  # Add this line
+  file_picker: ^11.0.2  # Add this line
   shared_preferences: ^2.3.3
   # Remove add_2_calendar and calendar packages
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^5.0.0
-  flutter_launcher_icons: ^0.13.1
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.4
 
 flutter_launcher_icons:
   android: true
   ios: true
-  image_path: "assets/images/icon/LEXIA_logo.png"
+  web:
+    generate: true
+    background_color: "#1a1a2e"
+    theme_color: "#1a1a2e"
+  image_path: "assets/images/icon/parentpro_logo.png"
   adaptive_icon_background: "#1a1a2e"
-  adaptive_icon_foreground: "assets/images/icon/LEXIA_logo.png"
+  adaptive_icon_foreground: "assets/images/icon/parentpro_logo.png"
   adaptive_icon_foreground_inset: 32  # ✅ Increase this to add more padding (0-48)
 
 flutter:
@@ -66,4 +70,4 @@ flutter:
   # the material Icons class.
   uses-material-design: true
   assets:
-    - assets/images/google_logo.png
+    - assets/images/icon/parentpro_logo.png

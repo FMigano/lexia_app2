@@ -1,41 +1,41 @@
 {
   "project_info": {
-    "project_number": "77421098859",
-    "project_id": "gamedevcapz",
-    "storage_bucket": "gamedevcapz.firebasestorage.app"
+    "project_number": "635282071283",
+    "project_id": "lexiadyslexia",
+    "storage_bucket": "lexiadyslexia.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:77421098859:android:92122dc5011fb1777bfe2e",
+        "mobilesdk_app_id": "1:635282071283:android:4efe845d654c739f3c2186",
         "android_client_info": {
-          "package_name": "com.vaultech.lexia"
+          "package_name": "com.vaulttech.lexiadyslexia"
         }
       },
       "oauth_client": [
         {
-          "client_id": "77421098859-4qkvscaachrha583pdbd3f33l0pfse2t.apps.googleusercontent.com",
+          "client_id": "635282071283-e6ht2nrohvtqmld5km89h6tv5kgemi33.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.vaultech.lexia",
-            "certificate_hash": "5dfd909e31c0aa9a2ad1442ae84b71d6a579899a"
+            "package_name": "com.vaulttech.lexiadyslexia",
+            "certificate_hash": "4faf39cda0e3533a789f0bfb0075ce70368e18ae"
           }
         },
         {
-          "client_id": "77421098859-hc13k4ho7idj55vvnbm6rf1r0fr7a6fm.apps.googleusercontent.com",
+          "client_id": "635282071283-oc8duo3qihe19vb19vmpba47qrsq3gqg.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyDJVxveEhUSDb6TwWpNDRB8WwJWB95VVdo"
+          "current_key": "AIzaSyDFRa1b0P64Dwf3bzByu1ygKh4FBUx-k40"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "77421098859-hc13k4ho7idj55vvnbm6rf1r0fr7a6fm.apps.googleusercontent.com",
+              "client_id": "635282071283-oc8duo3qihe19vb19vmpba47qrsq3gqg.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

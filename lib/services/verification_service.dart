@@ -9,7 +9,7 @@ class VerificationService {
   static final FirebaseStorage _storage = FirebaseStorage.instance;
 
   // Trusted domains for auto-verification
-  static const List<String> TRUSTED_DOMAINS = [
+  static const List<String> trustDomains = [
     // Universities
     '.edu',
     'harvard.edu',
@@ -50,12 +50,12 @@ class VerificationService {
     final domain = email.split('@').last.toLowerCase();
     
     // Check exact domain matches
-    if (TRUSTED_DOMAINS.contains(domain)) {
+    if (trustDomains.contains(domain)) {
       return true;
     }
     
     // Check domain endings (like .edu, .gov)
-    for (String trustedDomain in TRUSTED_DOMAINS) {
+    for (String trustedDomain in trustDomains) {
       if (trustedDomain.startsWith('.') && domain.endsWith(trustedDomain)) {
         return true;
       }

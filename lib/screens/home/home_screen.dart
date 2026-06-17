@@ -49,11 +49,11 @@ class _HomeScreenState extends State<HomeScreen> {
         final verificationStatus = userData?['verificationStatus'];
         
         // Debug print to see what's happening
-        print('=== VERIFICATION DEBUG ===');
-        print('Role: $role');
-        print('Verification Status: $verificationStatus');
-        print('Needs Verification: ${_needsVerification(userData)}');
-        print('========================');
+        debugPrint('=== VERIFICATION DEBUG ===');
+        debugPrint('Role: $role');
+        debugPrint('Verification Status: $verificationStatus');
+        debugPrint('Needs Verification: ${_needsVerification(userData)}');
+        debugPrint('========================');
         
         // Only show for professionals who need verification (not verified)
         if (!_needsVerification(userData)) {
@@ -67,7 +67,7 @@ class _HomeScreenState extends State<HomeScreen> {
         // Create full-screen blocking overlay
         return Positioned.fill(
           child: Material(
-            color: Colors.black.withOpacity(0.9),
+            color: Colors.black.withValues(alpha: 0.9),
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(16),
@@ -87,7 +87,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             borderRadius: BorderRadius.circular(16),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
+                                color: Colors.black.withValues(alpha: 0.3),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                               ),
@@ -367,6 +367,7 @@ class _HomeScreenState extends State<HomeScreen> {
             _selectedIndex = index;
           });
         },
+        labelBehavior: NavigationDestinationLabelBehavior.onlyShowSelected,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),

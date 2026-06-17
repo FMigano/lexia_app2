@@ -11,9 +11,9 @@ class StorageService {
       // Extract reference from URL
       final ref = _storage.refFromURL(imageUrl);
       await ref.delete();
-      print('Successfully deleted image: ${ref.fullPath}');
+      debugPrint('Successfully deleted image: ${ref.fullPath}');
     } catch (e) {
-      print('Error deleting image: $e');
+      debugPrint('Error deleting image: $e');
       // Continue even if deletion fails
     }
   }
